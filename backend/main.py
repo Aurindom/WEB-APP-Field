@@ -6,8 +6,6 @@ import re
 from dotenv import load_dotenv
 load_dotenv()
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-
 from google import genai
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -85,7 +83,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[ALLOWED_ORIGIN],
     allow_methods=["POST", "GET"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "X-Api-Key"],
     allow_credentials=False,
 )
 
@@ -116,15 +114,21 @@ async def health():
 @app.post("/parse-serial", response_model=ParseSerialResponse)
 @limiter.limit("10/minute")
 async def parse_serial(request: Request, body: ParseSerialRequest):
+    api_key = request.headers.get("X-Api-Key", "").strip()
+    if not api_key:
+        return JSONResponse(status_code=401, content={"detail": "Gemini API key required"})
     logger.info("parse_serial called, media_type=%s", body.media_type)
-    return await parse_serial_logic(body.image_b64, body.media_type, GEMINI_API_KEY)
+    return await parse_serial_logic(body.image_b64, body.media_type, api_key)
 
 
 @app.post("/suggest-group", response_model=SuggestGroupResponse)
 @limiter.limit("15/minute")
 async def suggest_group(request: Request, body: SuggestGroupRequest):
+    api_key = request.headers.get("X-Api-Key", "").strip()
+    if not api_key:
+        return JSONResponse(status_code=401, content={"detail": "Gemini API key required"})
     logger.info("suggest_group called")
-    raw_suggestions = await _call_group_suggestion(body.description, GEMINI_API_KEY)
+    raw_suggestions = await _call_group_suggestion(body.description, api_key)
     validated = [g for g in raw_suggestions if g.get("group_id") in VALID_GROUP_IDS]
     return SuggestGroupResponse(suggestions=validated)
 

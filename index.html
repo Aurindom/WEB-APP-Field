@@ -256,6 +256,7 @@ body{font-family:system-ui,-apple-system,sans-serif;color:#111827;background:#f3
   <div class="side-footer">
     <button class="btn btn-orange w-full" id="btn-new-project">+ New Project</button>
     <button class="btn btn-secondary w-full mt-2" id="btn-manage-prices">⚙ Manage Prices</button>
+    <button class="btn btn-secondary w-full mt-2" id="btn-api-key">🔑 Gemini API Key</button>
   </div>
 </div>
 
@@ -625,14 +626,16 @@ function blobToBase64(blob) {
 async function callParseSerial(imageBlob) {
   if (!BACKEND_BASE) return { status:'offline' };
   if (!navigator.onLine) return { status:'offline' };
+  if (!APP.geminiKey) return { status:'no-key' };
   try {
     const image_b64 = await blobToBase64(imageBlob);
     const media_type = imageBlob.type || 'image/jpeg';
     const resp = await fetchWithTimeout(`${BACKEND_BASE}/parse-serial`, {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json', 'X-Api-Key': APP.geminiKey},
       body: JSON.stringify({ image_b64, media_type }),
     });
+    if (resp.status === 401) return { status:'no-key' };
     if (!resp.ok) return { status:'offline' };
     const d = await resp.json();
     return { status: d.confidence, serial: d.serial ?? null, pass1: d.pass1 ?? null, pass2: d.pass2 ?? [] };
@@ -642,12 +645,14 @@ async function callParseSerial(imageBlob) {
 async function callSuggestGroup(description) {
   if (!BACKEND_BASE) return { status:'offline', suggestions:[] };
   if (!navigator.onLine) return { status:'offline', suggestions:[] };
+  if (!APP.geminiKey) return { status:'no-key', suggestions:[] };
   try {
     const resp = await fetchWithTimeout(`${BACKEND_BASE}/suggest-group`, {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json', 'X-Api-Key': APP.geminiKey},
       body: JSON.stringify({ description }),
     });
+    if (resp.status === 401) return { status:'no-key', suggestions:[] };
     if (!resp.ok) return { status:'offline', suggestions:[] };
     const d = await resp.json();
     return { status:'ok', suggestions: d.suggestions || [] };
@@ -851,6 +856,7 @@ let APP = {
   projects: [],
   activeProjectId: null,
   globalPriceOverrides: {},
+  geminiKey: '',
 };
 
 let VIEW = {
@@ -884,6 +890,7 @@ function loadApp() {
     if (raw) APP = JSON.parse(raw);
     if (!APP || !Array.isArray(APP.projects)) APP = { projects:[], activeProjectId:null };
     if (!APP.globalPriceOverrides) APP.globalPriceOverrides = {};
+    if (!APP.geminiKey) APP.geminiKey = '';
     APP.projects.forEach(p => {
       if (!p.customItems) p.customItems = {};
       if (!p.hiddenItems) p.hiddenItems = [];
@@ -1600,6 +1607,43 @@ document.getElementById('btn-manage-prices').addEventListener('click', () => {
 });
 
 
+document.getElementById('btn-api-key').addEventListener('click', () => {
+  closePanel();
+  handleApiKey();
+});
+
+function handleApiKey() {
+  const current = APP.geminiKey || '';
+  const isSet = current.length > 0;
+  showModal(`
+    <div class="font-bold text-lg mb-1">Gemini API Key</div>
+    <p class="text-sm text-gray-500 mb-3">Get a free key at <strong>aistudio.google.com</strong> → Get API key. The key is stored only on this device.</p>
+    <input type="password" class="input mb-1" id="gemini-key-input" placeholder="AIza..." value="${isSet ? current : ''}" autocomplete="off" />
+    <p class="text-xs text-gray-400 mb-3" id="key-status">${isSet ? '✓ Key saved' : 'No key set — AI features will prompt for a key'}</p>
+    <div class="row" style="justify-content:flex-end;gap:.5rem">
+      ${isSet ? '<button class="btn btn-secondary" id="key-clear">Clear key</button>' : ''}
+      <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="key-save">Save</button>
+    </div>
+  `);
+  setTimeout(() => {
+    document.getElementById('modal-cancel')?.addEventListener('click', closeModal);
+    document.getElementById('key-save')?.addEventListener('click', () => {
+      const val = document.getElementById('gemini-key-input').value.trim();
+      APP.geminiKey = val;
+      saveApp();
+      closeModal();
+      toast(val ? 'Gemini key saved' : 'Key cleared');
+    });
+    document.getElementById('key-clear')?.addEventListener('click', () => {
+      APP.geminiKey = '';
+      saveApp();
+      closeModal();
+      toast('Key cleared');
+    });
+  }, 50);
+}
+
 document.getElementById('btn-new-project').addEventListener('click', () => {
   showModal(`
     <div class="font-bold text-lg mb-3">New Property</div>
@@ -2127,6 +2171,10 @@ async function handleSuggestGroup(description, btn) {
     btn.disabled = false;
     btn.textContent = origText;
 
+    if (result.status === 'no-key') {
+      toast('Add your Gemini API key — tap ☰ → Gemini API Key');
+      return;
+    }
     if (result.status === 'offline') {
       toast('Backend not reachable — check connection');
       return;
@@ -2182,6 +2230,15 @@ async function handleScanSerial(roomType, instanceId, groupId, itemId) {
     try {
       const blob = await compressToJpegBlob(file, 3000, 0.98);
       const result = await callParseSerial(blob);
+
+      if (result.status === 'no-key') {
+        showModal(`
+          <div class="font-bold text-lg mb-3">Gemini API Key Required</div>
+          <p class="text-sm text-gray-700 mb-4">Tap ☰ → Gemini API Key to add your free key from aistudio.google.com, or enter the serial manually below.</p>
+          ${manualSerialForm(roomType, instanceId, groupId, itemId)}
+        `);
+        return;
+      }
 
       if (result.status === 'offline') {
         showModal(`
