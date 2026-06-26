@@ -751,6 +751,14 @@ function buildExcelWorkbook(state) {
           const lt = uc * qty;
           roomSub += lt;
           rows.push([cell(m.name||id), cell(m.unit||'ea'), cell(qty), cell(uc,null,MONEY), cell(lt,null,MONEY)]);
+          const sk = `${roomType}:${instanceId}:${groupId}:${id}`;
+          const sv = state.serials?.[sk];
+          const sl = Array.isArray(sv) ? sv.filter(Boolean) : (sv ? [sv] : []);
+          if (sl.length) {
+            const sr = rows.length;
+            rows.push([cell(`Serial: ${sl.join(', ')}`, NOTE), cell('',NOTE), cell('',NOTE), cell('',NOTE), cell('',NOTE)]);
+            merges.push({ s:{r:sr, c:0}, e:{r:sr, c:4} });
+          }
         }
       } else {
         const rr = rows.length;
@@ -1132,7 +1140,9 @@ function renderContent(proj) {
   const room = proj.rooms[rt];
   const groups = ROOM_GROUPS[rt] || [];
 
-  let html = '';
+  let html = `<div style="display:flex;justify-content:flex-end;margin-bottom:.5rem">
+    <button class="btn btn-xs btn-secondary" data-action="clear-room" data-room="${rt}" data-instance="${VIEW.instanceId || 'single'}">Clear room</button>
+  </div>`;
 
   if (def.type === 'multi') {
     const instances = room.instances;
@@ -1999,6 +2009,25 @@ document.addEventListener('click', (e) => {
     return;
   }
 
+  if (action === 'clear-room') {
+    const proj = getProject();
+    if (!proj) return;
+    const roomType = el.dataset.room;
+    const instanceId = el.dataset.instance;
+    const roomDef = RoomModel.ROOM_DEFINITIONS[roomType];
+    const groups = ROOM_GROUPS[roomType] || [];
+    const allItemIds = groups.flatMap(gId => {
+      const std = GROUPS[gId]?.items || [];
+      const custom = Object.entries(proj.customItems || {}).filter(([,d]) => d.groupId === gId).map(([id]) => id);
+      return [...std, ...custom];
+    });
+    allItemIds.forEach(id => setItemQty(roomType, instanceId, id, 0));
+    saveApp();
+    render();
+    toast('Room cleared');
+    return;
+  }
+
   if (action === 'toggle-item') {
     const itemId = item;
     const proj = getProject();
@@ -2225,7 +2254,6 @@ async function handleScanSerial(roomType, instanceId, groupId, itemId) {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*';
-  input.capture = 'environment';
 
   input.addEventListener('change', async () => {
     const file = input.files && input.files[0];
@@ -2244,11 +2272,29 @@ async function handleScanSerial(roomType, instanceId, groupId, itemId) {
       const result = await callParseSerial(blob);
 
       if (result.status === 'no-key') {
+        const noKeySerialKey = `${roomType}:${instanceId}:${groupId}:${itemId}`;
         showModal(`
           <div class="font-bold text-lg mb-3">Anthropic API Key Required</div>
-          <p class="text-sm text-gray-700 mb-4">Tap ☰ → Anthropic API Key to add your key from console.anthropic.com, or enter the serial manually below.</p>
+          <p class="text-sm text-gray-700 mb-2">Paste your key to enable AI scanning:</p>
+          <input type="password" class="input mb-2" id="inline-key-input" placeholder="sk-ant-..." autocomplete="off" />
+          <div class="row mb-4" style="justify-content:flex-end;gap:.5rem">
+            <button class="btn btn-secondary" data-action="close-modal">Cancel</button>
+            <button class="btn btn-primary" id="inline-key-save">Save Key</button>
+          </div>
+          <p class="text-sm text-gray-500 mb-2">Or enter serial manually:</p>
           ${manualSerialForm(roomType, instanceId, groupId, itemId)}
         `);
+        setTimeout(() => {
+          document.getElementById('inline-key-save')?.addEventListener('click', () => {
+            const val = document.getElementById('inline-key-input')?.value.trim();
+            if (!val) { toast('Enter a key first'); return; }
+            APP.geminiKey = val;
+            saveApp();
+            closeModal();
+            toast('Key saved — tap Scan again');
+          });
+          wireManualSerialForm(noKeySerialKey);
+        }, 50);
         return;
       }
 
