@@ -1633,7 +1633,7 @@ function handleApiKey() {
       APP.geminiKey = val;
       saveApp();
       closeModal();
-      toast(val ? 'Gemini key saved' : 'Key cleared');
+      toast(val ? 'Anthropic key saved' : 'Key cleared');
     });
     document.getElementById('key-clear')?.addEventListener('click', () => {
       APP.geminiKey = '';
