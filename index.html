@@ -845,7 +845,7 @@ async function downloadZip(projectName, state, projectId) {
    App state & logic
 ══════════════════════════════════════════ */
 
-const STATE_KEY = 'fieldscope-app-v1';
+const STATE_KEY = 'fieldscope-app-v2';
 
 let APP = {
   projects: [],
@@ -2298,7 +2298,7 @@ function deleteSerial(key, value) {
    Install prompt (iOS + Android)
 ══════════════════════════════════════════ */
 (() => {
-  const DISMISS_KEY = 'fieldscope-install-dismissed';
+  const DISMISS_KEY = 'fieldscope-install-dismissed-v2';
   const banner = document.getElementById('install-banner');
   const text = document.getElementById('install-text');
   const actionBtn = document.getElementById('install-action');
