@@ -1178,6 +1178,18 @@ function renderContent(proj) {
   el.innerHTML = html;
 
   wirePhotoWidgets(proj);
+  wireSerialDeleteButtons();
+}
+
+function wireSerialDeleteButtons() {
+  document.querySelectorAll('.serial-tag-del').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteSerial(btn.dataset.serialKey, btn.dataset.serialVal);
+      render();
+      toast('Serial removed');
+    });
+  });
 }
 
 function getItemDef(proj, itemId) {
