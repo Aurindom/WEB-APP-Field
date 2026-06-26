@@ -1386,7 +1386,7 @@ function renderPhotoWidget(projId, roomType, instanceId, groupId, itemId) {
   const itemAttr = itemId ? ` data-item="${itemId}"` : '';
   return `<div class="photo-row mt-2" data-photo-widget
       data-proj-id="${projId}" data-room="${roomType}" data-instance="${instanceId}" data-group="${groupId}"${itemAttr}>
-    <input type="file" accept="image/*" capture="environment" class="hidden" data-photo-input />
+    <input type="file" accept="image/*" class="hidden" data-photo-input />
     <button type="button" class="btn btn-secondary btn-sm shrink-0" data-photo-btn>📷 Photo</button>
     <span class="badge badge-gray hidden" data-photo-count></span>
     <div class="photo-thumbs" data-photo-thumbs></div>
@@ -1398,7 +1398,7 @@ function renderRoomPhotoWidget(projId, roomType, instanceId) {
     <div class="label mb-1" style="font-size:.75rem;color:#6b7280">Room Photos</div>
     <div class="photo-row" data-photo-widget
         data-proj-id="${projId}" data-room="${roomType}" data-instance="${instanceId}">
-      <input type="file" accept="image/*" capture="environment" class="hidden" data-photo-input />
+      <input type="file" accept="image/*" class="hidden" data-photo-input />
       <button type="button" class="btn btn-secondary btn-sm shrink-0" data-photo-btn>📷 Add Photo</button>
       <span class="badge badge-gray hidden" data-photo-count></span>
       <div class="photo-thumbs" data-photo-thumbs></div>
@@ -1532,28 +1532,55 @@ function wirePhotoWidgets(proj) {
       if (thumbsEl) thumbsEl.appendChild(wrap);
     }
 
-    if (btn) {
-      btn.addEventListener('click', () => input && input.click());
+    async function processPhotoFile(file) {
+      if (!file) return;
+      try {
+        const blob = await compressToJpegBlob(file);
+        const keys = getPhotoKeys(roomType, instanceId, storageKey);
+        const key = buildPhotoKey(projId, roomType, instanceId, storageKey, keys.length);
+        await PhotoStore.save(key, blob);
+        addPhotoKey(roomType, instanceId, key, storageKey);
+        addThumb(key, blob);
+        refreshCount();
+        toast('Photo saved');
+      } catch (err) {
+        console.error('photo capture failed', err);
+        toast('Photo failed — try again');
+      }
     }
 
-    if (input) {
-      input.addEventListener('change', async () => {
-        const file = input.files && input.files[0];
-        input.value = '';
-        if (!file) return;
-        try {
-          const blob = await compressToJpegBlob(file);
-          const keys = getPhotoKeys(roomType, instanceId, storageKey);
-          const key = buildPhotoKey(projId, roomType, instanceId, storageKey, keys.length);
-          await PhotoStore.save(key, blob);
-          addPhotoKey(roomType, instanceId, key, storageKey);
-          addThumb(key, blob);
-          refreshCount();
-          toast('Photo saved');
-        } catch (err) {
-          console.error('photo capture failed', err);
-          toast('Photo failed — try again');
-        }
+    if (btn) {
+      btn.addEventListener('click', () => {
+        showModal(`
+          <div class="font-bold text-lg mb-4">Add Photo</div>
+          <div style="display:flex;flex-direction:column;gap:.75rem">
+            <button class="btn btn-primary w-full" id="photo-opt-camera" style="font-size:1rem;padding:.75rem">📷 Camera</button>
+            <button class="btn btn-secondary w-full" id="photo-opt-upload" style="font-size:1rem;padding:.75rem">📁 Upload from Library</button>
+          </div>
+          <button class="btn btn-secondary w-full mt-3" data-action="close-modal">Cancel</button>
+        `);
+        setTimeout(() => {
+          document.getElementById('photo-opt-camera')?.addEventListener('click', () => {
+            closeModal();
+            const cam = document.createElement('input');
+            cam.type = 'file';
+            cam.accept = 'image/*';
+            cam.capture = 'environment';
+            cam.addEventListener('change', () => processPhotoFile(cam.files && cam.files[0]));
+            cam.click();
+          });
+          document.getElementById('photo-opt-upload')?.addEventListener('click', () => {
+            closeModal();
+            if (input) {
+              input.addEventListener('change', async () => {
+                const file = input.files && input.files[0];
+                input.value = '';
+                await processPhotoFile(file);
+              }, { once: true });
+              input.click();
+            }
+          });
+        }, 50);
       });
     }
 
