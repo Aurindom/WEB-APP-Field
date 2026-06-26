@@ -20,7 +20,7 @@ from slowapi.util import get_remote_address
 
 from parse_serial import parse_serial_logic, ParseSerialResponse
 
-ALLOWED_ORIGIN = os.environ.get("SPARK_ALLOWED_ORIGIN", "http://localhost:5500")
+ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "http://localhost:5500")
 
 VALID_GROUP_IDS = {
     "ig:flooring", "ig:paint", "ig:doors", "ig:pest", "ig:misc",
