@@ -21,10 +21,11 @@ PASS1_PROMPT = (
 )
 PASS2_PROMPT = (
     "You are reading an appliance or equipment data plate. "
-    "Find the field labeled 'SER. No.', 'Serial No.', 'Serial Number', or 'S/N' and extract its value. "
-    "Also extract any other strings that look like serial numbers (mix of letters and digits, 6-20 chars). "
-    "Exclude: voltage (e.g. 115V), frequency (60 Hz), wattage (W), amperage (A), dimensions (cm, mm), and dates. "
-    'Respond ONLY with JSON: {"candidates": ["...", "..."]}. '
+    "PRIMARY goal: find the field explicitly labeled 'SER. No.', 'Serial No.', 'Serial Number', or 'S/N' and return its exact value as the first candidate. "
+    "Read only the value of that field — stop at the end of that value. Do NOT bleed into adjacent fields or include characters from the next line or label. "
+    "SECONDARY: include other distinct strings that look like serial numbers (6-20 chars) only if they are clearly separate entries, not continuations of the primary serial. "
+    "Exclude: model numbers, voltage (e.g. 115V), frequency (60 Hz), wattage (W), amperage (A), dimensions (cm, mm), and dates. "
+    'Respond ONLY with JSON: {"candidates": ["...", "..."]} with the labeled serial value first. '
     'If none found, respond {"candidates": []}.'
 )
 
@@ -55,6 +56,22 @@ def _levenshtein(a: str, b: str) -> int:
         for j in range(1, n + 1):
             prev, dp[j] = dp[j], prev if a[i-1] == b[j-1] else 1 + min(prev, dp[j], dp[j-1])
     return dp[n]
+
+
+def _filter_contaminated(pass1_norm: str, candidates: list[str]) -> list[str]:
+    if not pass1_norm or not pass1_norm.isdigit():
+        return candidates
+    filtered = []
+    for c in candidates:
+        nc = normalize_serial(c)
+        stripped = re.sub(r'[a-z]+$', '', nc)
+        if (stripped and stripped != nc
+                and len(stripped) <= len(pass1_norm)
+                and _levenshtein(pass1_norm, stripped) <= 2):
+            logger.debug("filtered contaminated candidate %r (stripped=%r)", c, stripped)
+            continue
+        filtered.append(c)
+    return filtered
 
 
 def agree(pass1: Optional[str], pass2_list: list[str]) -> Optional[str]:
@@ -139,6 +156,7 @@ async def parse_serial_logic(image_b64: str, media_type: str, api_key: str) -> P
 
     pass1 = _strip_serial(pass1)
     pass2 = [_strip_serial(c) for c in pass2]
+    pass2 = _filter_contaminated(normalize_serial(pass1) if pass1 else "", pass2)
 
     agreed = agree(pass1, pass2)
     if agreed:
