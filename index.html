@@ -2250,10 +2250,32 @@ async function handleSuggestGroup(description, btn) {
   }
 }
 
-async function handleScanSerial(roomType, instanceId, groupId, itemId) {
+function handleScanSerial(roomType, instanceId, groupId, itemId) {
+  showModal(`
+    <div class="font-bold text-lg mb-4">Scan Serial Number</div>
+    <div style="display:flex;flex-direction:column;gap:.75rem">
+      <button class="btn btn-primary w-full" id="scan-opt-camera" style="font-size:1rem;padding:.75rem">📷 Camera</button>
+      <button class="btn btn-secondary w-full" id="scan-opt-upload" style="font-size:1rem;padding:.75rem">📁 Upload from Library</button>
+    </div>
+    <button class="btn btn-secondary w-full mt-3" data-action="close-modal">Cancel</button>
+  `);
+  setTimeout(() => {
+    document.getElementById('scan-opt-camera')?.addEventListener('click', () => {
+      closeModal();
+      _doScan(roomType, instanceId, groupId, itemId, true);
+    });
+    document.getElementById('scan-opt-upload')?.addEventListener('click', () => {
+      closeModal();
+      _doScan(roomType, instanceId, groupId, itemId, false);
+    });
+  }, 50);
+}
+
+async function _doScan(roomType, instanceId, groupId, itemId, useCamera) {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*';
+  if (useCamera) input.capture = 'environment';
 
   input.addEventListener('change', async () => {
     const file = input.files && input.files[0];
