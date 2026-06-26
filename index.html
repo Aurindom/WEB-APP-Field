@@ -1,0 +1,2367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FieldScope">
+<meta name="theme-color" content="#1e40af">
+<title>Field Repair Estimator</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;height:100%}
+body{font-family:system-ui,-apple-system,sans-serif;color:#111827;background:#f3f4f6;line-height:1.5;height:100%;overscroll-behavior:none}
+
+.label{display:block;font-size:.875rem;font-weight:600;color:#1f2937;margin-bottom:.25rem}
+.input,.select{
+  width:100%;padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;
+  color:#111827;font-weight:500;background:#fff;font-size:1rem;
+  -webkit-appearance:none;appearance:none;
+}
+.input:focus,.select:focus{outline:none;box-shadow:0 0 0 2px #3b82f6;border-color:transparent}
+.input::placeholder{color:#9ca3af;font-weight:400}
+.input:disabled{background:#f3f4f6;cursor:not-allowed}
+.input-sm{padding:.375rem .625rem;font-size:.875rem}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
+  padding:.625rem 1.25rem;border-radius:.5rem;font-weight:600;border:none;cursor:pointer;
+  background:#3b82f6;color:#fff;font-size:.9375rem;line-height:1;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  transition:transform .1s ease, opacity .1s ease;
+}
+.btn:active{transform:scale(.96);opacity:.9}
+.btn-secondary{background:#e5e7eb;color:#1f2937}
+.btn-danger{background:#fee2e2;color:#b91c1c}
+.btn-orange{background:#f97316;color:#fff}
+.btn-green{background:#d1fae5;color:#065f46}
+.btn-blue-outline{background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe}
+.btn-sm{padding:.375rem .75rem;font-size:.8125rem}
+.btn-xs{padding:.25rem .5rem;font-size:.75rem}
+
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;padding:1rem;margin-bottom:.75rem}
+.card-sm{padding:.75rem}
+
+.badge{display:inline-block;padding:.125rem .5rem;border-radius:9999px;font-size:.75rem;font-weight:600;background:#dbeafe;color:#1e40af}
+.badge-green{background:#d1fae5;color:#065f46}
+.badge-yellow{background:#fef3c7;color:#92400e}
+.badge-red{background:#fee2e2;color:#991b1b}
+.badge-gray{background:#f3f4f6;color:#6b7280}
+
+.row{display:flex;align-items:center;gap:.5rem}
+.col{display:flex;flex-direction:column;gap:.5rem}
+.grow{flex:1 1 0;min-width:0}
+.shrink-0{flex-shrink:0}
+.wrap{flex-wrap:wrap}
+
+.mt-1{margin-top:.25rem}.mt-2{margin-top:.5rem}.mt-3{margin-top:.75rem}.mt-4{margin-top:1rem}
+.mb-1{margin-bottom:.25rem}.mb-2{margin-bottom:.5rem}.mb-3{margin-bottom:.75rem}.mb-4{margin-bottom:1rem}
+.px-4{padding-left:1rem;padding-right:1rem}
+.py-2{padding-top:.5rem;padding-bottom:.5rem}
+
+.text-sm{font-size:.875rem}.text-xs{font-size:.75rem}.text-lg{font-size:1.125rem}
+.font-semibold{font-weight:600}.font-bold{font-weight:700}.font-medium{font-weight:500}
+.text-gray-400{color:#9ca3af}.text-gray-500{color:#6b7280}.text-gray-700{color:#374151}.text-gray-900{color:#111827}
+.text-blue-600{color:#2563eb}.text-red-600{color:#dc2626}.text-green-700{color:#15803d}
+.text-orange-600{color:#ea580c}
+.hidden{display:none!important}
+.w-full{width:100%}
+.text-center{text-align:center}
+.italic{font-style:italic}
+.opacity-50{opacity:.5}
+
+.thumb{width:64px;height:64px;object-fit:cover;border-radius:.375rem;border:1px solid #e5e7eb;flex-shrink:0}
+.thumb-sm{width:48px;height:48px}
+.thumb-wrap{position:relative;display:inline-block;flex-shrink:0}
+.thumb-del{position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;font-weight:700;-webkit-tap-highlight-color:transparent}
+
+.progress-bar-track{background:#e5e7eb;border-radius:9999px;height:.5rem;overflow:hidden}
+.progress-bar-fill{background:#3b82f6;height:100%;border-radius:9999px;transition:width .4s ease}
+
+.toast{
+  position:fixed;bottom:env(safe-area-inset-bottom, 1.5rem);bottom:calc(1.5rem + env(safe-area-inset-bottom, 0));
+  left:50%;transform:translateX(-50%) translateY(0);
+  background:#111827;color:#fff;padding:.625rem 1.25rem;border-radius:9999px;
+  font-size:.875rem;font-weight:500;z-index:9999;opacity:0;
+  transition:opacity .25s ease, transform .25s ease;pointer-events:none;white-space:nowrap;
+}
+.toast.show{opacity:1}
+
+.risk-warning{
+  background:#fef3c7;border:1.5px solid #fbbf24;border-radius:.75rem;
+  padding:.875rem 1rem;color:#78350f;font-weight:500;font-size:.875rem;
+}
+
+.install-banner{
+  background:#eff6ff;border:1px solid #bfdbfe;border-radius:.75rem;
+  padding:.75rem 1rem;
+}
+
+/* App shell */
+#app{display:flex;flex-direction:column;height:100vh;max-width:640px;margin:0 auto;background:#f3f4f6;position:relative}
+
+.app-header{
+  display:flex;align-items:center;gap:.75rem;
+  padding:.75rem 1rem;padding-top:calc(.75rem + env(safe-area-inset-top, 0));
+  background:#1e40af;color:#fff;flex-shrink:0;
+  box-shadow:0 2px 8px rgba(0,0,0,.15);
+}
+.app-header .btn-secondary{background:rgba(255,255,255,.15);color:#fff}
+.app-header .btn-secondary:active{background:rgba(255,255,255,.25)}
+
+.header-project-name{font-size:.95rem;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.header-total{font-size:1.1rem;font-weight:700;color:#bfdbfe;white-space:nowrap;flex-shrink:0}
+
+.progress-wrap{padding:.5rem 1rem .25rem;background:#fff;border-bottom:1px solid #e5e7eb;flex-shrink:0}
+.progress-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;font-size:.75rem;color:#6b7280}
+
+.room-nav{
+  display:flex;gap:.375rem;overflow-x:auto;padding:.625rem 1rem;
+  background:#fff;border-bottom:1px solid #e5e7eb;flex-shrink:0;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;
+}
+.room-nav::-webkit-scrollbar{display:none}
+
+.tab{
+  flex-shrink:0;padding:.4rem .875rem;border-radius:9999px;font-size:.8125rem;
+  font-weight:600;background:#f3f4f6;color:#374151;border:none;cursor:pointer;
+  white-space:nowrap;-webkit-tap-highlight-color:transparent;
+  transition:background .15s ease, color .15s ease;
+}
+.tab:active{transform:scale(.97)}
+.tab-active{background:#1e40af;color:#fff}
+.tab-add{background:#dbeafe;color:#1e40af}
+.tab-remove{background:#fee2e2;color:#b91c1c}
+
+.room-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:1rem;}
+
+.instance-row{display:flex;gap:.375rem;overflow-x:auto;margin-bottom:.875rem;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.instance-row::-webkit-scrollbar{display:none}
+
+/* Group card */
+.group-card{background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;margin-bottom:.75rem;overflow:hidden}
+.group-header{
+  display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;
+  cursor:pointer;user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.group-header:active{background:#f9fafb}
+.group-chevron{color:#9ca3af;font-size:.875rem;transition:transform .2s ease;flex-shrink:0}
+.group-chevron.open{transform:rotate(90deg)}
+.group-body{padding:.5rem .75rem .75rem;border-top:1px solid #f3f4f6}
+.group-suggested{border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.2)}
+
+/* Item rows */
+.item-row{border-top:1px solid #f9fafb}
+.item-row:first-child{border-top:none}
+.item-label{display:flex;align-items:flex-start;gap:.625rem;padding:.5rem .25rem;cursor:pointer}
+.item-cb{width:1.125rem;height:1.125rem;margin-top:.15rem;accent-color:#3b82f6;flex-shrink:0}
+.item-name{font-size:.875rem;font-weight:500;color:#111827;flex:1}
+.item-unit{font-size:.75rem;color:#9ca3af;flex-shrink:0;padding-top:.1rem}
+.item-action-btn{background:none;border:none;cursor:pointer;font-size:1rem;line-height:1;padding:.25rem .2rem;opacity:.5;transition:opacity .15s}
+.item-action-btn:hover{opacity:1}
+.item-detail{display:flex;align-items:center;gap:.5rem;padding:.25rem .25rem .5rem 1.75rem;flex-wrap:wrap}
+.qty-stepper{display:flex;align-items:center;gap:.25rem}
+.qty-btn{width:2.125rem;height:2.125rem;border:1px solid #d1d5db;border-radius:.375rem;background:#fff;font-size:1.1rem;font-weight:700;color:#374151;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent;user-select:none}
+.qty-btn:active{background:#f3f4f6;border-color:#9ca3af}
+.qty-input{width:3rem;padding:.25rem .125rem;border:1px solid #d1d5db;border-radius:.375rem;font-size:.875rem;font-weight:600;color:#111827;text-align:center}
+.qty-input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.2)}
+.line-cost{font-size:.75rem;color:#6b7280}
+.line-total{font-size:.875rem;font-weight:700;color:#1e40af;margin-left:auto}
+.note-row{padding:0 .25rem}
+.note-input{width:100%;padding:.5rem .625rem;border:1px solid #e5e7eb;border-radius:.5rem;font-size:.8rem;color:#374151;resize:none;font-family:inherit;line-height:1.4;background:#fafafa;box-sizing:border-box}
+.note-input:focus{outline:none;border-color:#93c5fd;background:#fff;box-shadow:0 0 0 2px rgba(147,197,253,.3)}
+.note-input::placeholder{color:#9ca3af}
+
+/* Photo widget */
+.photo-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.5rem .25rem 0}
+.photo-thumbs{display:flex;gap:.375rem;flex-wrap:wrap}
+
+/* Suggest box */
+.suggest-box{border:1px dashed #d1d5db;background:#fafafa;border-radius:.75rem;padding:.875rem;margin-top:.5rem}
+.suggest-label{font-size:.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem}
+
+/* Serial widget */
+.serial-widget{background:#f9fafb;border:1px solid #e5e7eb;border-radius:.5rem;padding:.625rem .75rem;margin-top:.5rem}
+.serial-label{font-size:.75rem;color:#6b7280;font-weight:600;margin-bottom:.375rem}
+.serial-tags{display:flex;flex-wrap:wrap;gap:.375rem;margin-bottom:.5rem}
+.serial-tag{display:inline-flex;align-items:center;gap:.3rem;background:#dbeafe;color:#1e40af;border-radius:.375rem;padding:.15rem .5rem;font-size:.8rem;font-weight:600}
+.serial-tag-del{background:none;border:none;color:#1e40af;cursor:pointer;font-size:15px;line-height:1;padding:2px 4px;margin-left:2px;font-weight:700;-webkit-tap-highlight-color:transparent}
+
+/* Side panel */
+.panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;opacity:0;transition:opacity .25s ease;pointer-events:none}
+.panel-overlay.visible{opacity:1;pointer-events:auto}
+.side-panel{
+  position:fixed;left:0;top:0;bottom:0;width:280px;background:#fff;z-index:101;
+  box-shadow:4px 0 24px rgba(0,0,0,.15);display:flex;flex-direction:column;
+  transform:translateX(-100%);transition:transform .25s ease;
+  padding-top:env(safe-area-inset-top, 0);
+}
+.side-panel.open{transform:translateX(0)}
+.side-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1rem;border-bottom:1px solid #e5e7eb;background:#1e40af;
+  padding-top:calc(1rem + env(safe-area-inset-top, 0));
+}
+.side-header span{color:#fff;font-size:1rem;font-weight:700}
+.side-body{flex:1;overflow-y:auto;padding:.5rem}
+.side-footer{padding:1rem;border-top:1px solid #e5e7eb}
+.project-item{
+  display:flex;align-items:center;gap:.5rem;padding:.75rem;border-radius:.625rem;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;margin-bottom:.25rem;
+}
+.project-item:active{background:#f3f4f6}
+.project-item.active{background:#eff6ff}
+.project-meta{font-size:.75rem;color:#9ca3af;margin-top:.1rem}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.modal-sheet{
+  background:#fff;border-radius:1.25rem 1.25rem 0 0;width:100%;max-width:640px;
+  padding:1.25rem;padding-bottom:calc(1.25rem + env(safe-area-inset-bottom, 0));
+  max-height:85vh;overflow-y:auto;
+}
+.modal-handle{width:2.5rem;height:.25rem;background:#d1d5db;border-radius:9999px;margin:0 auto .875rem}
+.modal-overlay.hidden{display:none}
+
+/* No data state */
+.empty-state{text-align:center;padding:3rem 1rem;color:#9ca3af}
+.empty-icon{font-size:3rem;margin-bottom:.75rem}
+.empty-title{font-size:1.125rem;font-weight:600;color:#6b7280;margin-bottom:.5rem}
+.empty-sub{font-size:.875rem}
+
+@media(max-width:480px){
+  .app-header{gap:.5rem}
+  .header-total{font-size:1rem}
+}
+</style>
+</head>
+<body>
+
+<div class="panel-overlay" id="panel-overlay"></div>
+<div class="side-panel" id="side-panel">
+  <div class="side-header">
+    <span>Projects</span>
+    <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff" id="btn-close-panel">✕</button>
+  </div>
+  <div class="side-body" id="panel-body"></div>
+  <div class="side-footer">
+    <button class="btn btn-orange w-full" id="btn-new-project">+ New Project</button>
+    <button class="btn btn-secondary w-full mt-2" id="btn-manage-prices">⚙ Manage Prices</button>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal-sheet" id="modal-sheet">
+    <div class="modal-handle"></div>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<div id="app">
+  <header class="app-header">
+    <button class="btn btn-secondary btn-sm shrink-0" id="btn-open-panel">☰</button>
+    <div class="grow" style="overflow:hidden">
+      <div class="header-project-name" id="hdr-name">—</div>
+    </div>
+    <div class="header-total" id="hdr-total">$0</div>
+    <button class="btn btn-sm btn-orange shrink-0" id="btn-export">Export</button>
+  </header>
+
+  <div id="install-banner" class="install-banner hidden px-4 py-2">
+    <div class="row">
+      <div id="install-text" class="grow text-sm" style="color:#1e40af"></div>
+      <button class="btn btn-sm hidden" id="install-action" style="background:#1e40af">Install</button>
+      <button class="btn btn-sm btn-secondary" id="install-dismiss">✕</button>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span>Inspection Progress</span>
+      <span id="hdr-progress">0/0 groups</span>
+    </div>
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <nav class="room-nav" id="room-nav"></nav>
+
+  <div class="room-content" id="room-content"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+<script>
+window.SPARK_API_BASE = 'https://ai-field-scope-production.up.railway.app';
+</script>
+
+<script>
+const PRICING = {
+'ig-01':{name:'Refinish Hardwood Floor',cost:2.35,unit:'sqft'},
+'ig-02':{name:'New Hardwoods 1.5"',cost:10.00,unit:'sqft'},
+'ig-03':{name:'New Hardwoods 2"',cost:4.75,unit:'sqft'},
+'ig-04':{name:'Hardwood Splicing',cost:8.40,unit:'sqft'},
+'ig-05':{name:'Vinyl Plank',cost:2.50,unit:'sqft'},
+'ig-06':{name:'Carpet',cost:1.90,unit:'sqft'},
+'ig-07':{name:'Interior Paint — 2 Tone',cost:2.95,unit:'sqft'},
+'ig-08':{name:'Drywall Repair',cost:900.00,unit:'1,000 sqft'},
+'ig-09':{name:'Wallpaper Removal',cost:250.00,unit:'room'},
+'ig-10':{name:'Interior Door — Hollow Slab',cost:125.00,unit:'ea.'},
+'ig-11':{name:'Interior Door Hardware',cost:25.00,unit:'ea.'},
+'ig-12':{name:'Bifold Door with Framing',cost:400.00,unit:'ea.'},
+'ig-13':{name:'Interior Door — Pre-hung',cost:200.00,unit:'ea.'},
+'ig-14':{name:'Front Entry Door',cost:475.00,unit:'ea.'},
+'ig-15':{name:'Front Entry Door Hardware',cost:80.00,unit:'ea.'},
+'ig-16':{name:'Exterior Door Hardware',cost:75.00,unit:'handle'},
+'ig-17':{name:'Exterior Insulated Side Door',cost:500.00,unit:'ea.'},
+'ig-18':{name:'Sliding Glass Door',cost:1025.00,unit:'ea.'},
+'ig-19':{name:'Trim Out (Casing, Crown, Baseboard)',cost:3.75,unit:'LF'},
+'ig-20':{name:'MISC / Punch List',cost:2650.00,unit:'flat'},
+'ig-21':{name:'Finish Out Labor',cost:1350.00,unit:'flat'},
+'ig-22':{name:'Light Fixtures',cost:70.00,unit:'100 sqft'},
+'ig-23':{name:'Bedbug Spray / Heat Treat',cost:475.00,unit:'ea.'},
+'ig-24':{name:'Termite Treatment',cost:650.00,unit:'ea.'},
+'ig-25':{name:'Demo',cost:1375.00,unit:'variable'},
+'ig-26':{name:'Haul Off',cost:725.00,unit:'load'},
+'ig-27':{name:'Final Cleaning',cost:325.00,unit:'flat'},
+'ig-28':{name:'Staging',cost:0.90,unit:'sqft'},
+'kt-01':{name:'Hinges and Pulls',cost:275.00,unit:'kitchen'},
+'kt-02':{name:'Cabinets Uppers',cost:125.00,unit:'LF'},
+'kt-03':{name:'Cabinets Lowers',cost:150.00,unit:'LF'},
+'kt-04':{name:'Cabinet Door Faces Only',cost:80.00,unit:'door'},
+'kt-05':{name:'Cabinets (Labor & Paint)',cost:1100.00,unit:'kitchen'},
+'kt-06':{name:'Granite + 4" Splash Guard',cost:40.00,unit:'LF'},
+'kt-07':{name:'Backsplash',cost:725.00,unit:'house'},
+'kt-08':{name:'Misc Woodwork',cost:500.00,unit:'variable'},
+'kt-09':{name:'Tile — Large Areas',cost:6.45,unit:'sqft'},
+'kt-10':{name:'Tile — Small Areas',cost:10.00,unit:'sqft'},
+'kt-11':{name:'Undermount Kitchen Sink',cost:325.00,unit:'ea.'},
+'kt-12':{name:'Microwave / Hood',cost:500.00,unit:'ea.'},
+'kt-13':{name:'Range',cost:725.00,unit:'ea.'},
+'kt-14':{name:'Wall Oven',cost:1075.00,unit:'ea.'},
+'kt-15':{name:'Cooktop',cost:550.00,unit:'ea.'},
+'kt-16':{name:'Dishwasher',cost:575.00,unit:'ea.'},
+'kt-17':{name:'Fridge',cost:1175.00,unit:'ea.'},
+'ba-01':{name:'Granite Countertop',cost:35.00,unit:'LF'},
+'ba-02':{name:'New Bottom Vanity',cost:125.00,unit:'LF'},
+'ba-03':{name:'Home Depot Vanity w/ Sink (18")',cost:225.00,unit:'ea.'},
+'ba-04':{name:'Toilet',cost:150.00,unit:'ea.'},
+'ba-05':{name:'Tile — Large Areas',cost:5.80,unit:'sqft'},
+'ba-06':{name:'Tile — Small Areas',cost:10.00,unit:'sqft'},
+'ba-07':{name:'Reglaze Tub or Chemical Clean',cost:350.00,unit:'ea.'},
+'ba-08':{name:'Reglaze Tub + Surround',cost:750.00,unit:'ea.'},
+'ba-09':{name:'Reglaze Shower',cost:1325.00,unit:'ea.'},
+'ba-10':{name:'Tiled Shower Tear Out + Tile Install',cost:3100.00,unit:'ea.'},
+'ba-11':{name:'Tub Tile Surround Tear Out + Tile Install',cost:2250.00,unit:'ea.'},
+'ba-12':{name:'Shower Plastic Insert Tear Out + New Insert',cost:825.00,unit:'ea.'},
+'ba-13':{name:'Tub Tear Out + New Insert & Tub',cost:1575.00,unit:'ea.'},
+'ba-14':{name:'Undermount Sink',cost:150.00,unit:'ea.'},
+'ba-15':{name:'Mirror',cost:200.00,unit:'ea.'},
+'ba-16':{name:'HVL Fan (if no window)',cost:275.00,unit:'ea.'},
+'as-01':{name:'Furnace',cost:3350.00,unit:'ea.'},
+'as-02':{name:'Condensing Unit',cost:3300.00,unit:'ea.'},
+'as-03':{name:'Package Unit',cost:4700.00,unit:'ea.'},
+'as-04':{name:'A-Coil (if no condensing unit)',cost:1625.00,unit:'ea.'},
+'as-05':{name:'Ducting (if no HVAC)',cost:3200.00,unit:'ea.'},
+'as-06':{name:'Duct Cleaning — Floor Vents',cost:550.00,unit:'ea.'},
+'as-07':{name:'Window Unit Replacement 220',cost:575.00,unit:'ea.'},
+'as-08':{name:'Hot Water Heater w/ Expansion Tank',cost:1425.00,unit:'ea.'},
+'as-09':{name:'Hot Water Heater Expansion Tank Only',cost:200.00,unit:'ea.'},
+'as-10':{name:'Switches / Outlets',cost:1400.00,unit:'house'},
+'as-11':{name:'Standard Electrical',cost:1650.00,unit:'house'},
+'as-12':{name:'Subfloor',cost:8.20,unit:'sqft'},
+'as-13':{name:'Framing',cost:950.00,unit:'variable'},
+'as-14':{name:'Structural (Pier)',cost:375.00,unit:'pier'},
+'as-15':{name:'Structural Foam Injection',cost:5.85,unit:'sqft'},
+'as-16':{name:'Roof',cost:1100.00,unit:'225 sqft L&M'},
+'as-17':{name:'Plumbing',cost:1000.00,unit:'variable'},
+'as-18':{name:'Electrical Panel Swap to 200A',cost:2350.00,unit:'ea.'},
+'as-19':{name:'Full Electrical Rewire (to Studs)',cost:5.65,unit:'sqft'},
+'as-20':{name:'Full Electrical Rewire (leaving Drywall)',cost:9.15,unit:'sqft'},
+'as-21':{name:'Wall Insulation (to Studs)',cost:1.20,unit:'sqft'},
+'as-22':{name:'Attic Insulation',cost:1225.00,unit:'1,600 sqft house'},
+'as-23':{name:'New Drywall to Studs (L&M)',cost:5.20,unit:'sqft'},
+'as-24':{name:'Aluminum Wiring',cost:2450.00,unit:'variable'},
+'ex-01':{name:'Fence Repair — Chain Link / Wood Gate',cost:225.00,unit:'variable'},
+'ex-02':{name:'Fence Repair — Chain Link',cost:275.00,unit:'LF'},
+'ex-03':{name:'Fence Repair — Privacy 6ft',cost:30.00,unit:'LF'},
+'ex-04':{name:'Landscaping',cost:450.00,unit:'variable'},
+'ex-05':{name:'Vinyl Siding (10\'x10\')',cost:300.00,unit:'square'},
+'ex-06':{name:'Tuck Pointing',cost:225.00,unit:'variable'},
+'ex-07':{name:'Exterior Paint',cost:2.60,unit:'sqft'},
+'ex-08':{name:'Exterior Wood Repair',cost:525.00,unit:'variable'},
+'ex-09':{name:'Siding Repair (10\'x10\')',cost:975.00,unit:'section'},
+'ex-10':{name:'Tree Trimming',cost:450.00,unit:'variable'},
+'ex-11':{name:'Tree Removal (w/o stump)',cost:1450.00,unit:'tree'},
+'ex-12':{name:'Stump Grinding',cost:250.00,unit:'stump'},
+'ex-13':{name:'Aluminum Window Paint (Int/Ext)',cost:700.00,unit:'house'},
+'ex-14':{name:'Windows (3x5 sash)',cost:425.00,unit:'ea.'},
+'ex-15':{name:'Window Repair — Non-Insulated (6x6+)',cost:35.00,unit:'sf'},
+'ex-16':{name:'Window Repair — Insulated (6x6+)',cost:40.00,unit:'sf'},
+'ex-17':{name:'Aluminum Framed Window Pane',cost:100.00,unit:'pane'},
+'ex-18':{name:'Guttering',cost:4.15,unit:'LF'},
+'ex-19':{name:'Concrete w/ Demo',cost:200.00,unit:'sqft'},
+'ex-20':{name:'Mowing (every 2 weeks)',cost:45.00,unit:'mowing'},
+'ex-21':{name:'Garage Door — 1 Car',cost:975.00,unit:'ea.'},
+'ex-22':{name:'Garage Door — 2 Car (Installed)',cost:1225.00,unit:'ea.'},
+'ex-23':{name:'Garage Conversion',cost:8850.00,unit:'ea.'},
+};
+</script>
+
+<script>
+const GROUPS = {
+  'ig:flooring':  { label:'Flooring',           items:['ig-01','ig-02','ig-03','ig-04','ig-05','ig-06'] },
+  'ig:paint':     { label:'Paint & Wall Repair', items:['ig-07','ig-08','ig-09'] },
+  'ig:doors':     { label:'Doors & Trim',        items:['ig-10','ig-11','ig-12','ig-13','ig-14','ig-15','ig-16','ig-17','ig-18','ig-19'] },
+  'ig:pest':      { label:'Pest Control',        items:['ig-23','ig-24'] },
+  'ig:misc':      { label:'Misc & Finish',       items:['ig-20','ig-21','ig-22','ig-25','ig-26','ig-27','ig-28'] },
+  'kt:cabinets':  { label:'Cabinets',            items:['kt-01','kt-02','kt-03','kt-04','kt-05','kt-08'] },
+  'kt:counters':  { label:'Countertops & Tile',  items:['kt-06','kt-07','kt-09','kt-10','kt-11'] },
+  'kt:appliances':{ label:'Appliances',          items:['kt-12','kt-13','kt-14','kt-15','kt-16','kt-17'] },
+  'ba:vanity':    { label:'Vanity & Countertop', items:['ba-01','ba-02','ba-03','ba-04','ba-14','ba-15','ba-16'] },
+  'ba:tub':       { label:'Tub & Shower',        items:['ba-07','ba-08','ba-09','ba-10','ba-11','ba-12','ba-13'] },
+  'ba:tile':      { label:'Tile',                items:['ba-05','ba-06'] },
+  'as:hvac':      { label:'HVAC',                items:['as-01','as-02','as-03','as-04','as-05','as-06','as-07','as-08','as-09'] },
+  'as:electrical':{ label:'Electrical',          items:['as-10','as-11','as-18','as-19','as-20','as-24'] },
+  'as:structural':{ label:'Structural',          items:['as-12','as-13','as-14','as-15','as-16','as-17'] },
+  'as:insulation':{ label:'Insulation & Drywall',items:['as-21','as-22','as-23'] },
+  'ex:fence':     { label:'Fence',               items:['ex-01','ex-02','ex-03'] },
+  'ex:siding':    { label:'Siding & Exterior',   items:['ex-04','ex-05','ex-06','ex-07','ex-08','ex-09','ex-18','ex-19'] },
+  'ex:windows':   { label:'Windows',             items:['ex-13','ex-14','ex-15','ex-16','ex-17'] },
+  'ex:garage':    { label:'Garage',              items:['ex-21','ex-22','ex-23'] },
+  'ex:trees':     { label:'Trees & Landscaping', items:['ex-10','ex-11','ex-12','ex-20'] },
+};
+
+const ROOM_GROUPS = {
+  interior: ['ig:flooring','ig:paint','ig:doors','ig:pest','ig:misc'],
+  bathroom: ['ba:vanity','ba:tub','ba:tile'],
+  bedroom:  ['ig:flooring','ig:paint','ig:doors'],
+  living:   ['ig:flooring','ig:paint','ig:doors','ig:misc'],
+  kitchen:  ['kt:cabinets','kt:counters','kt:appliances'],
+  systems:  ['as:hvac','as:electrical','as:structural','as:insulation'],
+  exterior: ['ex:fence','ex:siding','ex:windows','ex:garage','ex:trees'],
+};
+
+const SERIAL_GROUPS = new Set(['as:hvac','kt:appliances']);
+const RISK_GROUPS = new Set(['as:hvac','as:electrical','as:structural']);
+const RISK_ITEMS = ['as-16'];
+</script>
+
+<script>
+const PhotoStore = (() => {
+  const DB_NAME = 'fieldscope-photos';
+  const DB_VERSION = 1;
+  const STORE = 'photos';
+  let dbPromise = null;
+
+  function open() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    return dbPromise;
+  }
+
+  function tx(mode) {
+    return open().then((db) => db.transaction(STORE, mode).objectStore(STORE));
+  }
+
+  function wrap(req) {
+    return new Promise((res, rej) => {
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+  }
+
+  return {
+    async init() { await open(); },
+    async save(key, blob) { return wrap((await tx('readwrite')).put(blob, key)); },
+    async get(key) { return wrap((await tx('readonly')).get(key)); },
+    async getAll(prefix) {
+      const store = await tx('readonly');
+      const range = IDBKeyRange.bound(prefix, prefix + '￿', false, false);
+      const results = [];
+      return new Promise((res, rej) => {
+        const cur = store.openCursor(range);
+        cur.onsuccess = () => { const c = cur.result; if (c) { results.push({ key: c.key, blob: c.value }); c.continue(); } else res(results); };
+        cur.onerror = () => rej(cur.error);
+      });
+    },
+    async delete(key) { return wrap((await tx('readwrite')).delete(key)); },
+    async clear(projectId) {
+      const prefix = `photo-${projectId}-`;
+      const store = await tx('readwrite');
+      const range = IDBKeyRange.bound(prefix, prefix + '￿', false, false);
+      return new Promise((res, rej) => {
+        const cur = store.openCursor(range);
+        cur.onsuccess = () => { const c = cur.result; if (c) { c.delete(); c.continue(); } else res(); };
+        cur.onerror = () => rej(cur.error);
+      });
+    },
+  };
+})();
+</script>
+
+<script>
+const RoomModel = (() => {
+  const ROOM_DEFINITIONS = {
+    bathroom: { type:'multi',  label:'Bathroom' },
+    bedroom:  { type:'multi',  label:'Bedroom' },
+    living:   { type:'multi',  label:'Living Area' },
+    kitchen:  { type:'single', label:'Kitchen' },
+    interior: { type:'single', label:'Interior' },
+    systems:  { type:'single', label:'Systems' },
+    exterior: { type:'single', label:'Exterior' },
+  };
+
+  let counter = 0;
+  function newId(roomType) { return `${roomType}-${Date.now().toString(36)}-${++counter}`; }
+  function newInst(roomType) { return { instanceId: newId(roomType), items:{}, photoKeys:[] }; }
+
+  function createState() {
+    const rooms = {};
+    for (const [rt, def] of Object.entries(ROOM_DEFINITIONS)) {
+      rooms[rt] = def.type === 'multi'
+        ? { type:'multi', instances:[newInst(rt)] }
+        : { type:'single', items:{}, photoKeys:[] };
+    }
+    return { rooms };
+  }
+
+  function addInstance(state, roomType) {
+    state.rooms[roomType].instances.push(newInst(roomType));
+    return state;
+  }
+
+  function removeInstance(state, roomType, instanceId) {
+    const room = state.rooms[roomType];
+    if (room.instances.length <= 1) return state;
+    room.instances = room.instances.filter(i => i.instanceId !== instanceId);
+    return state;
+  }
+
+  function setItem(state, roomType, instanceId, itemId, qty) {
+    const room = state.rooms[roomType];
+    const target = room.type === 'multi'
+      ? room.instances.find(i => i.instanceId === instanceId)
+      : room;
+    if (!target) return state;
+    if (qty > 0) target.items[itemId] = qty;
+    else delete target.items[itemId];
+    return state;
+  }
+
+  function sumItems(items) {
+    let total = 0;
+    for (const [id, qty] of Object.entries(items)) {
+      total += (PRICING[id]?.cost ?? 0) * qty;
+    }
+    return total;
+  }
+
+  function calcTotal(state) {
+    let total = 0;
+    for (const room of Object.values(state.rooms)) {
+      total += room.type === 'multi'
+        ? room.instances.reduce((s, i) => s + sumItems(i.items), 0)
+        : sumItems(room.items);
+    }
+    return total;
+  }
+
+  function deserialize(json) {
+    if (!json) return createState();
+    try {
+      const p = JSON.parse(json);
+      return (p && p.rooms) ? p : createState();
+    } catch { return createState(); }
+  }
+
+  return { ROOM_DEFINITIONS, createState, addInstance, removeInstance, setItem, calcTotal, deserialize };
+})();
+</script>
+
+<script>
+const BACKEND_BASE = window.SPARK_API_BASE || null;
+
+async function fetchWithTimeout(url, opts = {}, ms = 7000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function blobToBase64(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onloadend = () => { const s = r.result; const i = s.indexOf(','); res(i >= 0 ? s.slice(i+1) : s); };
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
+async function callParseSerial(imageBlob) {
+  if (!BACKEND_BASE) return { status:'offline' };
+  if (!navigator.onLine) return { status:'offline' };
+  try {
+    const image_b64 = await blobToBase64(imageBlob);
+    const media_type = imageBlob.type || 'image/jpeg';
+    const resp = await fetchWithTimeout(`${BACKEND_BASE}/parse-serial`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ image_b64, media_type }),
+    });
+    if (!resp.ok) return { status:'offline' };
+    const d = await resp.json();
+    return { status: d.confidence, serial: d.serial ?? null, pass1: d.pass1 ?? null, pass2: d.pass2 ?? [] };
+  } catch { return { status:'offline' }; }
+}
+
+async function callSuggestGroup(description) {
+  if (!BACKEND_BASE) return { status:'offline', suggestions:[] };
+  if (!navigator.onLine) return { status:'offline', suggestions:[] };
+  try {
+    const resp = await fetchWithTimeout(`${BACKEND_BASE}/suggest-group`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ description }),
+    });
+    if (!resp.ok) return { status:'offline', suggestions:[] };
+    const d = await resp.json();
+    return { status:'ok', suggestions: d.suggestions || [] };
+  } catch { return { status:'offline', suggestions:[] }; }
+}
+</script>
+
+<script>
+const MAX_DIM = 1600;
+const JPEG_QUALITY = 0.82;
+
+function compressToJpegBlob(file, maxDim = MAX_DIM, quality = JPEG_QUALITY) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width:w, height:h } = img;
+      if (w > maxDim || h > maxDim) { const s = maxDim / Math.max(w,h); w = Math.round(w*s); h = Math.round(h*s); }
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      cv.toBlob(b => b ? res(b) : rej(new Error('toBlob failed')), 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('decode failed')); };
+    img.src = url;
+  });
+}
+
+function buildPhotoKey(projId, roomType, instanceId, groupId, index) {
+  return `photo-${projId}-${roomType}-${instanceId}-${groupId.replace(/:/g,'-')}-${index}`;
+}
+</script>
+
+<script>
+function buildExcelWorkbook(state) {
+  const rows = [];
+  const merges = [];
+
+  const BOLD    = { font:{ bold:true } };
+  const ITALIC  = { font:{ italic:true } };
+  const HDR     = { font:{ bold:true }, fill:{ fgColor:{ rgb:'FFE5E7EB' } } };
+  const SUB     = { font:{ bold:true }, fill:{ fgColor:{ rgb:'FFF3F4F6' } } };
+  const GRAND   = { font:{ bold:true }, fill:{ fgColor:{ rgb:'FFDBEAFE' } }, border:{ top:{ style:'medium', color:{ rgb:'FF111827' } }, bottom:{ style:'medium', color:{ rgb:'FF111827' } } } };
+  const MONEY   = '$#,##0.00';
+
+  function cell(v, style, fmt) {
+    const c = { v, t: typeof v === 'number' ? 'n' : 's' };
+    if (style || fmt) { c.s = { ...(style || {}) }; if (fmt) c.s.numFmt = fmt; }
+    return c;
+  }
+
+  function headerRow(label) {
+    const r = rows.length;
+    rows.push([cell(label,HDR),cell('',HDR),cell('',HDR),cell('',HDR),cell('',HDR)]);
+    merges.push({ s:{ r, c:0 }, e:{ r, c:4 } });
+  }
+
+  function colTitles() {
+    rows.push([cell('Item',BOLD),cell('Unit',BOLD),cell('Qty',BOLD),cell('Unit Cost',BOLD),cell('Total',BOLD)]);
+  }
+
+  const NOTE  = { font:{ italic:true, color:{ rgb:'FF6B7280' } } };
+
+  function groupBlock(items, roomType, instanceId) {
+    const hidden = state.hiddenItems || [];
+    const groups = ROOM_GROUPS[roomType] || [];
+    let roomSub = 0;
+    let anyItems = false;
+
+    for (const groupId of groups) {
+      const gDef = GROUPS[groupId];
+      if (!gDef) continue;
+
+      const standardIds = (gDef.items || []).filter(id => !hidden.includes(id));
+      const customIds = Object.entries(state.customItems || {})
+        .filter(([, d]) => d.groupId === groupId)
+        .map(([id]) => id);
+      const allIds = [...standardIds, ...customIds];
+      const checkedEntries = allIds.map(id => [id, items[id] || 0]).filter(([, q]) => q > 0);
+
+      const noteKey = `${roomType}:${instanceId ?? 'single'}:${groupId}`;
+      const note = state.groupNotes?.[noteKey];
+
+      if (!checkedEntries.length && !note) continue;
+      anyItems = true;
+
+      const r = rows.length;
+      rows.push([cell(gDef.label, { font:{ bold:true, color:{ rgb:'FF1D4ED8' } } }),cell(''),cell(''),cell(''),cell('')]);
+      merges.push({ s:{ r, c:0 }, e:{ r, c:4 } });
+
+      if (checkedEntries.length) {
+        for (const [id, qty] of checkedEntries) {
+          const m = id.startsWith('custom-') ? (state.customItems?.[id] || {}) : (PRICING[id] || {});
+          const uc = itemCost(state, id);
+          const lt = uc * qty;
+          roomSub += lt;
+          rows.push([cell(m.name||id), cell(m.unit||'ea'), cell(qty), cell(uc,null,MONEY), cell(lt,null,MONEY)]);
+        }
+      } else {
+        const rr = rows.length;
+        rows.push([cell('No Action Needed',ITALIC),cell(''),cell(''),cell(''),cell('')]);
+        merges.push({ s:{ r:rr, c:0 }, e:{ r:rr, c:4 } });
+      }
+
+      if (note) {
+        const rr = rows.length;
+        rows.push([cell(`Note: ${note}`, NOTE),cell('',NOTE),cell('',NOTE),cell('',NOTE),cell('',NOTE)]);
+        merges.push({ s:{ r:rr, c:0 }, e:{ r:rr, c:4 } });
+      }
+    }
+
+    if (!anyItems) {
+      const r = rows.length;
+      rows.push([cell('No items recorded',ITALIC),cell(''),cell(''),cell(''),cell('')]);
+      merges.push({ s:{ r, c:0 }, e:{ r, c:4 } });
+    }
+    return roomSub;
+  }
+
+  let grand = 0;
+  for (const [rt, room] of Object.entries(state.rooms)) {
+    const def = RoomModel.ROOM_DEFINITIONS[rt] || { label:rt };
+    if (room.type === 'multi') {
+      let roomTotal = 0;
+      room.instances.forEach((inst, i) => {
+        headerRow(`${def.label} ${i+1}`);
+        colTitles();
+        roomTotal += groupBlock(inst.items, rt, inst.instanceId);
+      });
+      rows.push([cell(`${def.label} Subtotal`,SUB),cell('',SUB),cell('',SUB),cell('',SUB),cell(roomTotal,SUB,MONEY)]);
+      grand += roomTotal;
+    } else {
+      headerRow(def.label);
+      colTitles();
+      const t = groupBlock(room.items, rt, 'single');
+      rows.push([cell(`${def.label} Subtotal`,SUB),cell('',SUB),cell('',SUB),cell('',SUB),cell(t,SUB,MONEY)]);
+      grand += t;
+    }
+    rows.push([cell(''),cell(''),cell(''),cell(''),cell('')]);
+  }
+
+  rows.push([cell('GRAND TOTAL',GRAND),cell('',GRAND),cell('',GRAND),cell('',GRAND),cell(grand,GRAND,MONEY)]);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!merges'] = merges;
+  ws['!cols'] = [{ wch:35 },{ wch:14 },{ wch:10 },{ wch:12 },{ wch:14 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Repair Estimate');
+  return wb;
+}
+
+async function downloadZip(projectName, state, projectId) {
+  const zip = new JSZip();
+  const xlsxBytes = XLSX.write(buildExcelWorkbook(state), { bookType:'xlsx', type:'array' });
+  zip.file('repair-estimate.xlsx', xlsxBytes);
+
+  const photos = zip.folder('photos');
+  for (const [rt, room] of Object.entries(state.rooms)) {
+    const def = RoomModel.ROOM_DEFINITIONS[rt] || { label:rt };
+    const label = def.label.replace(/\s+/g,'-');
+    if (room.type === 'multi') {
+      for (let i = 0; i < room.instances.length; i++) {
+        const inst = room.instances[i];
+        for (const [gid, keys] of Object.entries(inst.groupPhotoKeys || {})) {
+          const gLabel = (GROUPS[gid]?.label || gid).replace(/\s+/g,'-');
+          for (const key of keys) {
+            const blob = await PhotoStore.get(key);
+            if (blob) photos.file(`${label}-${i+1}-${gLabel}-${key.split('-').pop()}.jpg`, blob);
+          }
+        }
+      }
+    } else {
+      for (const [gid, keys] of Object.entries(room.groupPhotoKeys || {})) {
+        const gLabel = (GROUPS[gid]?.label || gid).replace(/\s+/g,'-');
+        for (const key of keys) {
+          const blob = await PhotoStore.get(key);
+          if (blob) photos.file(`${label}-${gLabel}-${key.split('-').pop()}.jpg`, blob);
+        }
+      }
+    }
+  }
+
+  const zipBlob = await zip.generateAsync({ type:'blob' });
+  const url = URL.createObjectURL(zipBlob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${projectName.replace(/\s+/g,'-')}-estimate.zip`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+}
+</script>
+
+<script>
+/* ══════════════════════════════════════════
+   App state & logic
+══════════════════════════════════════════ */
+
+const STATE_KEY = 'fieldscope-app-v1';
+
+let APP = {
+  projects: [],
+  activeProjectId: null,
+  globalPriceOverrides: {},
+};
+
+let VIEW = {
+  room: 'interior',
+  instanceId: null,
+  collapsed: {},
+  suggestedGroups: [],
+  suggestTimer: null,
+  scanPending: false,
+};
+
+function fmt(n) {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits:0, maximumFractionDigits:0 });
+}
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function getProject() {
+  return APP.projects.find(p => p.id === APP.activeProjectId) || null;
+}
+
+function saveApp() {
+  localStorage.setItem(STATE_KEY, JSON.stringify(APP));
+}
+
+function loadApp() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (raw) APP = JSON.parse(raw);
+    if (!APP || !Array.isArray(APP.projects)) APP = { projects:[], activeProjectId:null };
+    if (!APP.globalPriceOverrides) APP.globalPriceOverrides = {};
+    APP.projects.forEach(p => {
+      if (!p.customItems) p.customItems = {};
+      if (!p.hiddenItems) p.hiddenItems = [];
+      if (!p.groupNotes) p.groupNotes = {};
+    });
+  } catch { APP = { projects:[], activeProjectId:null, globalPriceOverrides:{} }; }
+}
+
+function newProject(name) {
+  const id = uid();
+  const proj = {
+    id,
+    name: name || 'New Property',
+    createdAt: Date.now(),
+    noAction: {},
+    serials: {},
+    priceOverrides: {},
+    customItems: {},
+    hiddenItems: [],
+    groupNotes: {},
+    ...RoomModel.createState(),
+  };
+  APP.projects.unshift(proj);
+  APP.activeProjectId = id;
+  saveApp();
+  return proj;
+}
+
+function switchProject(id) {
+  APP.activeProjectId = id;
+  VIEW.room = 'interior';
+  VIEW.instanceId = null;
+  VIEW.suggestedGroups = [];
+  if (VIEW.suggestTimer) { clearTimeout(VIEW.suggestTimer); VIEW.suggestTimer = null; }
+  saveApp();
+}
+
+function deleteProject(id) {
+  PhotoStore.clear(id).catch(() => {});
+  APP.projects = APP.projects.filter(p => p.id !== id);
+  if (APP.activeProjectId === id) {
+    APP.activeProjectId = APP.projects[0]?.id || null;
+  }
+  saveApp();
+}
+
+function renameProject(id, name) {
+  const proj = APP.projects.find(p => p.id === id);
+  if (proj) { proj.name = name; saveApp(); }
+}
+
+function getItems(proj, roomType, instanceId) {
+  const room = proj?.rooms?.[roomType];
+  if (!room) return {};
+  if (room.type === 'multi') return room.instances.find(i => i.instanceId === instanceId)?.items || {};
+  return room.items || {};
+}
+
+function getPhotoKeys(roomType, instanceId, groupId) {
+  const proj = getProject();
+  const room = proj?.rooms?.[roomType];
+  if (!room) return [];
+  const target = room.type === 'multi'
+    ? room.instances.find(i => i.instanceId === instanceId)
+    : room;
+  return target?.groupPhotoKeys?.[groupId] || [];
+}
+
+function addPhotoKey(roomType, instanceId, key, groupId) {
+  const proj = getProject();
+  if (!proj) return;
+  const room = proj.rooms[roomType];
+  const target = room.type === 'multi'
+    ? room.instances.find(i => i.instanceId === instanceId)
+    : room;
+  if (!target) return;
+  if (!target.groupPhotoKeys) target.groupPhotoKeys = {};
+  if (!target.groupPhotoKeys[groupId]) target.groupPhotoKeys[groupId] = [];
+  target.groupPhotoKeys[groupId].push(key);
+  saveApp();
+}
+
+function removePhotoKey(roomType, instanceId, key, groupId) {
+  const proj = getProject();
+  if (!proj) return;
+  const room = proj.rooms[roomType];
+  const target = room.type === 'multi'
+    ? room.instances.find(i => i.instanceId === instanceId)
+    : room;
+  if (!target?.groupPhotoKeys?.[groupId]) return;
+  target.groupPhotoKeys[groupId] = target.groupPhotoKeys[groupId].filter(k => k !== key);
+  saveApp();
+}
+
+function setItemQty(roomType, instanceId, itemId, qty) {
+  const proj = getProject();
+  if (!proj) return;
+  RoomModel.setItem(proj, roomType, instanceId, itemId, qty);
+  saveApp();
+}
+
+function setNoAction(roomType, instanceId, groupId, val) {
+  const proj = getProject();
+  if (!proj) return;
+  const key = `${roomType}:${instanceId ?? 'single'}:${groupId}`;
+  if (val) proj.noAction[key] = true;
+  else delete proj.noAction[key];
+  saveApp();
+}
+
+function getNoAction(proj, roomType, instanceId, groupId) {
+  return !!(proj?.noAction?.[`${roomType}:${instanceId ?? 'single'}:${groupId}`]);
+}
+
+function addRoomInstance(roomType) {
+  const proj = getProject();
+  if (!proj) return;
+  RoomModel.addInstance(proj, roomType);
+  const instances = proj.rooms[roomType].instances;
+  VIEW.instanceId = instances[instances.length - 1].instanceId;
+  saveApp();
+}
+
+function removeRoomInstance(roomType, instanceId) {
+  const proj = getProject();
+  if (!proj) return;
+  RoomModel.removeInstance(proj, roomType, instanceId);
+  VIEW.instanceId = proj.rooms[roomType].instances[0].instanceId;
+  saveApp();
+}
+
+function calcProgress() {
+  const proj = getProject();
+  if (!proj) return { pct:0, done:0, total:0 };
+  let total = 0, done = 0;
+  for (const [rt, room] of Object.entries(proj.rooms)) {
+    const groups = ROOM_GROUPS[rt] || [];
+    if (room.type === 'multi') {
+      for (const inst of room.instances) {
+        for (const gId of groups) {
+          total++;
+          const naKey = `${rt}:${inst.instanceId}:${gId}`;
+          const hasStandard = (GROUPS[gId]?.items || []).some(id => (inst.items[id] || 0) > 0);
+          const hasCustom = Object.entries(proj.customItems || {}).some(([id, d]) => d.groupId === gId && (inst.items[id] || 0) > 0);
+          if (proj.noAction[naKey] || hasStandard || hasCustom) done++;
+        }
+      }
+    } else {
+      for (const gId of groups) {
+        total++;
+        const naKey = `${rt}:single:${gId}`;
+        const hasStandard = (GROUPS[gId]?.items || []).some(id => (room.items[id] || 0) > 0);
+        const hasCustom = Object.entries(proj.customItems || {}).some(([id, d]) => d.groupId === gId && (room.items[id] || 0) > 0);
+        if (proj.noAction[naKey] || hasStandard || hasCustom) done++;
+      }
+    }
+  }
+  return { pct: total > 0 ? Math.round(done/total*100) : 0, done, total };
+}
+
+function checkRisk(proj) {
+  if (!proj) return false;
+  const riskGroupsDone = [...RISK_GROUPS].every(gId => {
+    const items = GROUPS[gId]?.items || [];
+    return items.some(id => {
+      const room = proj.rooms.systems;
+      return room && (room.items[id] || 0) > 0;
+    });
+  });
+  const roofDone = RISK_ITEMS.some(id => (proj.rooms.systems?.items?.[id] || 0) > 0);
+  return riskGroupsDone && roofDone;
+}
+
+function photoCount(proj) {
+  if (!proj) return 0;
+  let count = 0;
+  for (const room of Object.values(proj.rooms)) {
+    if (room.type === 'multi') {
+      room.instances.forEach(inst => {
+        Object.values(inst.groupPhotoKeys || {}).forEach(keys => { count += keys.length; });
+      });
+    } else {
+      Object.values(room.groupPhotoKeys || {}).forEach(keys => { count += keys.length; });
+    }
+  }
+  return count;
+}
+
+
+/* ══════════════════════════════════════════
+   Render
+══════════════════════════════════════════ */
+
+function render() {
+  const proj = getProject();
+  renderHeader(proj);
+  renderProgress();
+  renderNav(proj);
+  renderContent(proj);
+  renderPanel();
+}
+
+function renderHeader(proj) {
+  document.getElementById('hdr-name').textContent = proj ? proj.name : 'No Project';
+  const total = proj ? calcProjectTotal(proj) : 0;
+  document.getElementById('hdr-total').textContent = fmt(total);
+}
+
+function renderProgress() {
+  const { pct, done, total } = calcProgress();
+  document.getElementById('progress-fill').style.width = `${pct}%`;
+  document.getElementById('hdr-progress').textContent = `${done}/${total} groups`;
+}
+
+function renderNav(proj) {
+  const defs = RoomModel.ROOM_DEFINITIONS;
+  let html = '';
+  for (const [rt, def] of Object.entries(defs)) {
+    const active = VIEW.room === rt;
+    let label = def.label;
+    if (def.type === 'multi' && proj) {
+      const count = proj.rooms[rt]?.instances?.length || 1;
+      if (count > 1) label += ` (${count})`;
+    }
+    html += `<button class="tab ${active ? 'tab-active' : ''}" data-action="set-room" data-room="${rt}">${label}</button>`;
+  }
+  document.getElementById('room-nav').innerHTML = html;
+}
+
+function renderContent(proj) {
+  const el = document.getElementById('room-content');
+  if (!proj) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">No Project Yet</div><div class="empty-sub">Tap ☰ to create your first property.</div></div>`;
+    return;
+  }
+
+  const rt = VIEW.room;
+  const def = RoomModel.ROOM_DEFINITIONS[rt];
+  const room = proj.rooms[rt];
+  const groups = ROOM_GROUPS[rt] || [];
+
+  let html = '';
+
+  if (def.type === 'multi') {
+    const instances = room.instances;
+    if (!VIEW.instanceId || !instances.find(i => i.instanceId === VIEW.instanceId)) {
+      VIEW.instanceId = instances[0].instanceId;
+    }
+    const activeInst = instances.find(i => i.instanceId === VIEW.instanceId);
+
+    html += `<div class="instance-row">`;
+    instances.forEach((inst, i) => {
+      const active = inst.instanceId === VIEW.instanceId;
+      html += `<button class="tab tab-sm ${active ? 'tab-active' : ''}" data-action="set-instance" data-instance="${inst.instanceId}">${def.label} ${i+1}</button>`;
+    });
+    html += `<button class="tab tab-sm tab-add" data-action="add-instance" data-room="${rt}">+ Add</button>`;
+    if (instances.length > 1) {
+      html += `<button class="tab tab-sm tab-remove" data-action="remove-instance" data-room="${rt}" data-instance="${VIEW.instanceId}">− Remove</button>`;
+    }
+    html += `</div>`;
+
+    groups.forEach(gId => {
+      html += renderGroup(proj, rt, VIEW.instanceId, gId, activeInst.items);
+    });
+
+    html += renderSuggestBox(rt);
+
+  } else {
+    groups.forEach(gId => {
+      html += renderGroup(proj, rt, 'single', gId, room.items);
+    });
+
+    if (rt === 'systems') {
+      if (checkRisk(proj)) {
+        html += `<div class="risk-warning mb-3">
+          <strong>Deal Risk Alert</strong> — HVAC, Electrical, Structural, and Roof all have line items.
+          Total major systems exposure: ${fmt(calcSystemsTotal(proj))}. Confirm before exporting.
+        </div>`;
+      }
+    }
+
+    html += renderSuggestBox(rt);
+  }
+
+  el.innerHTML = html;
+
+  wirePhotoWidgets(proj);
+}
+
+function getItemDef(proj, itemId) {
+  if (itemId.startsWith('custom-')) {
+    const c = proj?.customItems?.[itemId];
+    return c ? { name: c.name, unit: c.unit, cost: c.cost } : null;
+  }
+  return PRICING[itemId] || null;
+}
+
+function itemCost(proj, itemId) {
+  if (itemId.startsWith('custom-')) return proj?.customItems?.[itemId]?.cost ?? 0;
+  return proj?.priceOverrides?.[itemId] ?? APP.globalPriceOverrides?.[itemId] ?? PRICING[itemId]?.cost ?? 0;
+}
+
+function calcProjectTotal(proj) {
+  if (!proj) return 0;
+  let total = 0;
+  for (const [, room] of Object.entries(proj.rooms)) {
+    if (room.type === 'multi') {
+      for (const inst of room.instances)
+        for (const [id, qty] of Object.entries(inst.items)) total += itemCost(proj, id) * qty;
+    } else {
+      for (const [id, qty] of Object.entries(room.items)) total += itemCost(proj, id) * qty;
+    }
+  }
+  return total;
+}
+
+function calcSystemsTotal(proj) {
+  const room = proj.rooms.systems;
+  let t = 0;
+  if (room) for (const [id, qty] of Object.entries(room.items)) t += itemCost(proj, id) * qty;
+  return t;
+}
+
+function renderGroup(proj, roomType, instanceId, groupId, allItems) {
+  const def = GROUPS[groupId];
+  if (!def) return '';
+
+  const isSuggested = VIEW.suggestedGroups.includes(groupId);
+  const collapsed = VIEW.collapsed[groupId];
+  const noAction = getNoAction(proj, roomType, instanceId, groupId);
+  const hidden = proj.hiddenItems || [];
+  const groupItems = def.items;
+  const visibleStandard = groupItems.filter(id => !hidden.includes(id));
+  const hiddenCount = groupItems.length - visibleStandard.length;
+  const customInGroup = Object.entries(proj.customItems || {}).filter(([, d]) => d.groupId === groupId);
+
+  let subtotal = 0;
+  visibleStandard.forEach(id => { subtotal += itemCost(proj, id) * (allItems[id] || 0); });
+  customInGroup.forEach(([id]) => { subtotal += itemCost(proj, id) * (allItems[id] || 0); });
+  const activeCount = visibleStandard.filter(id => (allItems[id] || 0) > 0).length
+    + customInGroup.filter(([id]) => (allItems[id] || 0) > 0).length;
+
+  const noteKey = `${roomType}:${instanceId ?? 'single'}:${groupId}`;
+  const noteText = proj.groupNotes?.[noteKey] || '';
+
+  let headerRight = '';
+  if (noAction) headerRight += `<span class="badge badge-green">No Action</span>`;
+  if (subtotal > 0) headerRight += `<span class="badge">${fmt(subtotal)}</span>`;
+  if (activeCount) headerRight += `<span class="badge badge-gray text-xs">${activeCount} item${activeCount>1?'s':''}</span>`;
+  if (noteText) headerRight += `<span class="badge badge-gray text-xs" title="${escHtml(noteText.slice(0,60))}">✎ note</span>`;
+
+  let html = `<div class="group-card ${isSuggested ? 'group-suggested' : ''}" data-group-card="${groupId}">`;
+  html += `<div class="group-header" data-action="toggle-group" data-group="${groupId}">
+    <span class="grow font-semibold text-sm">${def.label}</span>
+    ${headerRight}
+    <span class="group-chevron ${collapsed ? '' : 'open'}">›</span>
+  </div>`;
+
+  if (!collapsed) {
+    html += `<div class="group-body">`;
+
+    html += `<div class="row mb-2" style="flex-wrap:wrap;gap:.375rem">
+      <button class="btn btn-xs ${noAction ? 'btn-green' : 'btn-secondary'}"
+              data-action="toggle-no-action" data-room="${roomType}" data-instance="${instanceId}" data-group="${groupId}">
+        ✓ No Action Needed
+      </button>
+    </div>`;
+
+    visibleStandard.forEach(itemId => {
+      html += renderItem(proj, itemId, allItems[itemId] || 0, roomType, instanceId, groupId);
+    });
+
+    if (hiddenCount > 0 && visibleStandard.length === 0 && customInGroup.length === 0) {
+      html += `<div class="text-sm text-gray-400 mt-2 mb-2 text-center" style="padding:.5rem">
+        All items hidden —
+        <button style="background:none;border:none;color:#3b82f6;cursor:pointer;font-size:.875rem;padding:0;font-weight:600"
+                data-action="show-hidden" data-group="${groupId}">restore</button>
+      </div>`;
+    } else if (hiddenCount > 0) {
+      html += `<div class="text-xs text-gray-400 mt-1 mb-1" style="padding-left:.25rem">
+        ${hiddenCount} item${hiddenCount > 1 ? 's' : ''} hidden —
+        <button style="background:none;border:none;color:#3b82f6;cursor:pointer;font-size:.75rem;padding:0;font-weight:600"
+                data-action="show-hidden" data-group="${groupId}">restore</button>
+      </div>`;
+    }
+
+    customInGroup.forEach(([itemId]) => {
+      html += renderItem(proj, itemId, allItems[itemId] || 0, roomType, instanceId, groupId);
+    });
+
+    html += `<div class="row mt-2" style="justify-content:flex-end">
+      <button class="btn btn-xs btn-blue-outline"
+              data-action="add-custom-item" data-room="${roomType}" data-instance="${instanceId}" data-group="${groupId}">
+        + Add Item
+      </button>
+    </div>`;
+
+    html += `<div class="note-row mt-2">
+      <textarea class="note-input" rows="2"
+                placeholder="Notes — quotes, concerns, sub info..."
+                data-action="save-note" data-note-key="${noteKey}"
+      >${escHtml(noteText)}</textarea>
+    </div>`;
+
+    html += `</div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function renderItem(proj, itemId, qty, roomType, instanceId, groupId) {
+  const p = getItemDef(proj, itemId);
+  if (!p) return '';
+  const isCustom = itemId.startsWith('custom-');
+  const checked = qty > 0;
+  const cost = itemCost(proj, itemId);
+  const isOverridden = !isCustom && proj?.priceOverrides?.[itemId] !== undefined;
+  const lineTotal = cost * qty;
+
+  const sideBtn = isCustom
+    ? `<button class="item-action-btn" title="Delete item"
+              data-action="delete-custom-item" data-item="${itemId}" data-room="${roomType}" data-instance="${instanceId}" data-group="${groupId}"
+              style="color:#ef4444;flex-shrink:0">✕</button>`
+    : `<button class="item-action-btn" title="Hide item"
+              data-action="hide-item" data-item="${itemId}" data-group="${groupId}"
+              style="color:#9ca3af;flex-shrink:0">−</button>`;
+
+  let html = `<div class="item-row">
+    <div style="display:flex;align-items:center;width:100%;gap:.25rem">
+      <label class="item-label" style="flex:1;min-width:0">
+        <input type="checkbox" class="item-cb" ${checked ? 'checked' : ''}
+               data-action="toggle-item" data-item="${itemId}" data-room="${roomType}" data-instance="${instanceId}" />
+        <span class="item-name">${p.name}</span>
+        <span class="item-unit">${p.unit}</span>
+      </label>
+      ${sideBtn}
+    </div>`;
+
+  if (checked) {
+    html += `<div class="item-detail">
+      <div class="qty-stepper">
+        <button class="qty-btn" data-action="step-qty" data-item="${itemId}" data-room="${roomType}" data-instance="${instanceId}" data-dir="-1">−</button>
+        <input type="number" class="qty-input" min="0" step="any" value="${qty}"
+               data-action="set-qty" data-item="${itemId}" data-room="${roomType}" data-instance="${instanceId}" />
+        <button class="qty-btn" data-action="step-qty" data-item="${itemId}" data-room="${roomType}" data-instance="${instanceId}" data-dir="1">+</button>
+      </div>
+      <span class="line-cost">×</span>
+      <button class="btn btn-xs ${isOverridden ? 'btn-orange' : 'btn-secondary'}"
+              data-action="edit-price" data-item="${itemId}"
+              style="padding:.15rem .4rem;font-size:.75rem;font-weight:600"
+              title="${isCustom ? 'Tap to change price' : isOverridden ? 'Custom price — tap to edit' : 'Tap to override price'}">
+        ${fmt(cost)}${isOverridden ? ' ✎' : ''}
+      </button>
+      <span class="line-cost">= </span>
+      <span class="line-total" data-line-total="${itemId}-${roomType}-${instanceId}">${fmt(lineTotal)}</span>
+    </div>`;
+
+    if (SERIAL_GROUPS.has(groupId)) {
+      html += renderSerialWidget(proj, roomType, instanceId, groupId, itemId);
+    }
+
+    html += renderPhotoWidget(proj.id, roomType, instanceId, groupId, itemId);
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function renderPhotoWidget(projId, roomType, instanceId, groupId, itemId) {
+  const itemAttr = itemId ? ` data-item="${itemId}"` : '';
+  return `<div class="photo-row mt-2" data-photo-widget
+      data-proj-id="${projId}" data-room="${roomType}" data-instance="${instanceId}" data-group="${groupId}"${itemAttr}>
+    <input type="file" accept="image/*" capture="environment" class="hidden" data-photo-input />
+    <button type="button" class="btn btn-secondary btn-sm shrink-0" data-photo-btn>📷 Photo</button>
+    <span class="badge badge-gray hidden" data-photo-count></span>
+    <div class="photo-thumbs" data-photo-thumbs></div>
+  </div>`;
+}
+
+function renderRoomPhotoWidget(projId, roomType, instanceId) {
+  return `<div class="card mt-2 mb-2" style="padding:.75rem">
+    <div class="label mb-1" style="font-size:.75rem;color:#6b7280">Room Photos</div>
+    <div class="photo-row" data-photo-widget
+        data-proj-id="${projId}" data-room="${roomType}" data-instance="${instanceId}">
+      <input type="file" accept="image/*" capture="environment" class="hidden" data-photo-input />
+      <button type="button" class="btn btn-secondary btn-sm shrink-0" data-photo-btn>📷 Add Photo</button>
+      <span class="badge badge-gray hidden" data-photo-count></span>
+      <div class="photo-thumbs" data-photo-thumbs></div>
+    </div>
+  </div>`;
+}
+
+function getSerials(key) {
+  const proj = getProject();
+  const val = proj?.serials?.[key];
+  if (!val) return [];
+  return typeof val === 'string' ? (val ? [val] : []) : val;
+}
+
+function renderSerialWidget(proj, roomType, instanceId, groupId, itemId) {
+  const key = `${roomType}:${instanceId}:${groupId}:${itemId}`;
+  const serials = getSerials(key);
+  const safeKey = key.replace(/:/g, '-');
+  const tagsHtml = serials.map(s =>
+    `<span class="serial-tag">${escHtml(s)}<button type="button" class="serial-tag-del" data-action="del-serial" data-serial-key="${key}" data-serial-val="${escHtml(s)}">×</button></span>`
+  ).join('');
+  return `<div class="serial-widget mt-1 mb-1">
+    <div class="serial-label row" style="margin-bottom:.25rem">
+      <span class="grow">Serial #</span>
+      <button class="btn btn-xs btn-blue-outline" data-action="scan-serial"
+              data-room="${roomType}" data-instance="${instanceId}" data-group="${groupId}" data-item="${itemId}">
+        🔍 Scan
+      </button>
+    </div>
+    ${serials.length ? `<div class="serial-tags">${tagsHtml}</div>` : ''}
+    <div class="row" style="gap:.375rem">
+      <input type="text" class="input input-sm grow" placeholder="Add serial manually"
+             id="serial-add-${safeKey}" />
+      <button class="btn btn-xs btn-secondary shrink-0" data-action="add-serial-manual" data-serial-key="${key}" data-safe-key="${safeKey}">Add</button>
+    </div>
+  </div>`;
+}
+
+function renderSuggestBox(roomType) {
+  const hasSuggestions = VIEW.suggestedGroups.length > 0;
+  return `<div class="suggest-box mt-3">
+    <div class="row" style="align-items:center;margin-bottom:.375rem">
+      <span class="suggest-label" style="margin-bottom:0">AI Group Suggestion</span>
+      ${hasSuggestions ? `<button class="btn btn-xs btn-secondary" data-action="clear-suggestions" style="margin-left:auto;font-size:.7rem">× Clear</button>` : ''}
+    </div>
+    <div class="row" style="gap:.5rem">
+      <input type="text" class="input grow text-sm" placeholder="Describe what you see..."
+             id="suggest-input" style="min-width:0" />
+      <button class="btn btn-secondary btn-sm shrink-0" data-action="suggest-group" data-room="${roomType}">Ask AI</button>
+    </div>
+    <div class="text-xs text-gray-500 mt-1">Requires backend connection. Result expands relevant groups for review.</div>
+  </div>`;
+}
+
+function renderPanel() {
+  const proj = getProject();
+  let html = '';
+  if (!APP.projects.length) {
+    html = `<div class="empty-state"><div class="empty-sub mt-4">No projects yet.<br>Tap below to start.</div></div>`;
+  } else {
+    for (const p of APP.projects) {
+      const active = p.id === APP.activeProjectId;
+      const total = calcProjectTotal(p);
+      html += `<div class="project-item ${active ? 'active' : ''}" data-action="switch-project" data-id="${p.id}">
+        <div class="grow">
+          <div class="font-semibold text-sm ${active ? 'text-blue-600' : 'text-gray-900'}">${escHtml(p.name)}</div>
+          <div class="project-meta">${fmt(total)} · ${new Date(p.createdAt).toLocaleDateString()}</div>
+        </div>
+        <div class="col" style="gap:.25rem">
+          <button class="btn btn-xs btn-secondary" data-action="rename-project" data-id="${p.id}" style="line-height:1">✏️</button>
+          <button class="btn btn-xs btn-danger" data-action="delete-project" data-id="${p.id}" style="line-height:1">🗑️</button>
+        </div>
+      </div>`;
+    }
+  }
+  document.getElementById('panel-body').innerHTML = html;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+
+/* ══════════════════════════════════════════
+   Photo widgets wiring
+══════════════════════════════════════════ */
+
+function wirePhotoWidgets(proj) {
+  if (!proj) return;
+  document.querySelectorAll('[data-photo-widget]').forEach(widget => {
+    const projId = widget.dataset.projId;
+    const roomType = widget.dataset.room;
+    const instanceId = widget.dataset.instance;
+    const groupId = widget.dataset.group;
+    const itemId = widget.dataset.item || null;
+    const storageKey = itemId ? `${groupId}:${itemId}` : groupId;
+
+    const input = widget.querySelector('[data-photo-input]');
+    const btn = widget.querySelector('[data-photo-btn]');
+    const countBadge = widget.querySelector('[data-photo-count]');
+    const thumbsEl = widget.querySelector('[data-photo-thumbs]');
+
+    function refreshCount() {
+      const keys = getPhotoKeys(roomType, instanceId, storageKey);
+      const n = keys.length;
+      if (countBadge) { countBadge.textContent = `${n} photo${n===1?'':'s'}`; countBadge.classList.toggle('hidden', n===0); }
+    }
+
+    function addThumb(key, blob) {
+      const url = URL.createObjectURL(blob);
+      const wrap = document.createElement('div');
+      wrap.className = 'thumb-wrap';
+      wrap.dataset.key = key;
+      const img = document.createElement('img');
+      img.className = 'thumb thumb-sm';
+      img.src = url;
+      const del = document.createElement('button');
+      del.className = 'thumb-del';
+      del.type = 'button';
+      del.textContent = '×';
+      del.addEventListener('click', async () => {
+        await PhotoStore.delete(key);
+        removePhotoKey(roomType, instanceId, key, storageKey);
+        URL.revokeObjectURL(url);
+        wrap.remove();
+        refreshCount();
+        toast('Photo removed');
+      });
+      wrap.appendChild(img);
+      wrap.appendChild(del);
+      if (thumbsEl) thumbsEl.appendChild(wrap);
+    }
+
+    if (btn) {
+      btn.addEventListener('click', () => input && input.click());
+    }
+
+    if (input) {
+      input.addEventListener('change', async () => {
+        const file = input.files && input.files[0];
+        input.value = '';
+        if (!file) return;
+        try {
+          const blob = await compressToJpegBlob(file);
+          const keys = getPhotoKeys(roomType, instanceId, storageKey);
+          const key = buildPhotoKey(projId, roomType, instanceId, storageKey, keys.length);
+          await PhotoStore.save(key, blob);
+          addPhotoKey(roomType, instanceId, key, storageKey);
+          addThumb(key, blob);
+          refreshCount();
+          toast('Photo saved');
+        } catch (err) {
+          console.error('photo capture failed', err);
+          toast('Photo failed — try again');
+        }
+      });
+    }
+
+    (async () => {
+      const keys = getPhotoKeys(roomType, instanceId, storageKey);
+      for (const key of keys) {
+        const blob = await PhotoStore.get(key);
+        if (blob) addThumb(key, blob);
+      }
+      refreshCount();
+    })();
+  });
+}
+
+
+/* ══════════════════════════════════════════
+   Modal helpers
+══════════════════════════════════════════ */
+
+function showModal(html, { onClose } = {}) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  document._modalOnClose = onClose;
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+  document.getElementById('modal-content').innerHTML = '';
+  if (typeof document._modalOnClose === 'function') document._modalOnClose();
+  document._modalOnClose = null;
+}
+
+document.getElementById('modal-overlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+
+/* ══════════════════════════════════════════
+   Toast
+══════════════════════════════════════════ */
+
+let toastTimer = null;
+function toast(msg, ms = 2400) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+
+/* ══════════════════════════════════════════
+   Side panel open/close
+══════════════════════════════════════════ */
+
+function openPanel() {
+  renderPanel();
+  document.getElementById('side-panel').classList.add('open');
+  document.getElementById('panel-overlay').classList.add('visible');
+}
+
+function closePanel() {
+  document.getElementById('side-panel').classList.remove('open');
+  document.getElementById('panel-overlay').classList.remove('visible');
+}
+
+document.getElementById('btn-open-panel').addEventListener('click', openPanel);
+document.getElementById('btn-close-panel').addEventListener('click', closePanel);
+document.getElementById('panel-overlay').addEventListener('click', closePanel);
+document.getElementById('btn-manage-prices').addEventListener('click', () => {
+  closePanel();
+  handleManagePrices();
+});
+
+
+document.getElementById('btn-new-project').addEventListener('click', () => {
+  showModal(`
+    <div class="font-bold text-lg mb-3">New Property</div>
+    <input type="text" class="input mb-3" id="new-proj-name" placeholder="e.g. 123 Main St, Dallas TX" />
+    <div class="row" style="justify-content:flex-end;gap:.5rem">
+      <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+      <button class="btn btn-orange" id="modal-confirm-new">Create</button>
+    </div>
+  `);
+  setTimeout(() => {
+    document.getElementById('new-proj-name')?.focus();
+    document.getElementById('modal-cancel')?.addEventListener('click', closeModal);
+    document.getElementById('modal-confirm-new')?.addEventListener('click', () => {
+      const name = document.getElementById('new-proj-name')?.value.trim() || 'New Property';
+      newProject(name);
+      closeModal();
+      closePanel();
+      render();
+      toast(`Created: ${name}`);
+    });
+    const inp = document.getElementById('new-proj-name');
+    if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('modal-confirm-new')?.click(); });
+  }, 50);
+});
+
+
+/* ══════════════════════════════════════════
+   Export
+══════════════════════════════════════════ */
+
+document.getElementById('btn-export').addEventListener('click', handleExport);
+
+async function handleExport() {
+  const proj = getProject();
+  if (!proj) { toast('No project selected'); return; }
+
+  const { done, total, pct } = calcProgress();
+  const photos = photoCount(proj);
+  const totalCost = calcProjectTotal(proj);
+  const hasRisk = checkRisk(proj);
+
+  let riskHtml = '';
+  if (hasRisk) {
+    riskHtml = `<div class="risk-warning mb-3">
+      <strong>Deal Risk Alert</strong> — Major systems (HVAC, Electrical, Structural, Roof) all have costs.
+      Verify before presenting to client.
+    </div>`;
+  }
+
+  showModal(`
+    <div class="font-bold text-lg mb-3">Export Review</div>
+    ${riskHtml}
+    <div class="card card-sm mb-3">
+      <div class="row mb-2"><span class="grow text-sm text-gray-700">Property</span><span class="font-semibold text-sm">${escHtml(proj.name)}</span></div>
+      <div class="row mb-2"><span class="grow text-sm text-gray-700">Groups reviewed</span><span class="font-semibold text-sm">${done}/${total} (${pct}%)</span></div>
+      <div class="row mb-2"><span class="grow text-sm text-gray-700">Photos captured</span><span class="font-semibold text-sm">${photos}</span></div>
+      <div class="row"><span class="grow text-sm text-gray-700">Total estimate</span><span class="font-bold text-blue-600">${fmt(totalCost)}</span></div>
+    </div>
+    <div class="text-xs text-gray-500 mb-3">Downloads a ZIP with Excel cost breakdown + all photos.</div>
+    <div class="row" style="justify-content:flex-end;gap:.5rem">
+      <button class="btn btn-secondary" id="export-cancel">Cancel</button>
+      <button class="btn btn-orange" id="export-confirm">📥 Download ZIP</button>
+    </div>
+  `);
+
+  setTimeout(() => {
+    document.getElementById('export-cancel')?.addEventListener('click', closeModal);
+    document.getElementById('export-confirm')?.addEventListener('click', async () => {
+      const btn = document.getElementById('export-confirm');
+      if (btn) { btn.disabled = true; btn.textContent = 'Building...'; }
+      try {
+        await downloadZip(proj.name, proj, proj.id);
+        closeModal();
+        toast('ZIP downloaded!');
+      } catch (err) {
+        console.error(err);
+        toast('Export failed — try again');
+        closeModal();
+      }
+    });
+  }, 50);
+}
+
+
+/* ══════════════════════════════════════════
+   Manage Prices modal
+══════════════════════════════════════════ */
+
+function handleManagePrices() {
+  const SECTIONS = [
+    { label:'Interior', groups:['ig:flooring','ig:paint','ig:doors','ig:pest','ig:misc'] },
+    { label:'Kitchen',  groups:['kt:cabinets','kt:counters','kt:appliances'] },
+    { label:'Bathroom', groups:['ba:vanity','ba:tub','ba:tile'] },
+    { label:'Systems',  groups:['as:hvac','as:electrical','as:structural','as:insulation'] },
+    { label:'Exterior', groups:['ex:fence','ex:siding','ex:windows','ex:garage','ex:trees'] },
+  ];
+
+  let html = `<div class="font-bold text-lg mb-1">Manage Default Prices</div>
+    <div class="text-xs text-gray-500 mb-3">Changes apply to all projects unless overridden per-project. Orange = custom default.</div>`;
+
+  for (const section of SECTIONS) {
+    html += `<div class="font-bold text-sm mt-3 mb-1" style="color:#1e40af">${section.label}</div>`;
+    for (const gId of section.groups) {
+      const group = GROUPS[gId];
+      if (!group) continue;
+      html += `<div class="text-xs font-semibold text-gray-500 mt-2 mb-1">${group.label}</div>`;
+      for (const itemId of group.items) {
+        const p = PRICING[itemId];
+        if (!p) continue;
+        const isOverridden = APP.globalPriceOverrides?.[itemId] !== undefined;
+        const currentVal = APP.globalPriceOverrides?.[itemId] ?? p.cost;
+        html += `<div class="row mb-1" style="gap:.375rem;align-items:center">
+          <span class="grow text-xs ${isOverridden ? 'text-orange-600 font-semibold' : 'text-gray-700'}" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.name)}</span>
+          <span class="text-xs text-gray-400 shrink-0">${p.unit}</span>
+          <input type="number" class="qty-input shrink-0" style="width:5.5rem" min="0" step="0.01"
+                 value="${currentVal}" data-global-price-item="${itemId}" />
+        </div>`;
+      }
+    }
+  }
+
+  html += `<div class="row mt-4" style="justify-content:space-between;gap:.5rem">
+    <button class="btn btn-secondary btn-sm" id="prices-reset-all">Reset All</button>
+    <div class="row" style="gap:.5rem">
+      <button class="btn btn-secondary" id="prices-cancel">Cancel</button>
+      <button class="btn" id="prices-save">Save</button>
+    </div>
+  </div>`;
+
+  showModal(html);
+
+  setTimeout(() => {
+    document.getElementById('prices-cancel')?.addEventListener('click', closeModal);
+    document.getElementById('prices-reset-all')?.addEventListener('click', () => {
+      APP.globalPriceOverrides = {};
+      saveApp();
+      closeModal();
+      render();
+      toast('All prices reset to defaults');
+    });
+    document.getElementById('prices-save')?.addEventListener('click', () => {
+      const inputs = document.querySelectorAll('[data-global-price-item]');
+      const overrides = {};
+      inputs.forEach(inp => {
+        const itemId = inp.dataset.globalPriceItem;
+        const val = parseFloat(inp.value);
+        if (!isNaN(val) && val >= 0 && val !== (PRICING[itemId]?.cost ?? 0)) {
+          overrides[itemId] = val;
+        }
+      });
+      APP.globalPriceOverrides = overrides;
+      saveApp();
+      closeModal();
+      render();
+      const count = Object.keys(overrides).length;
+      toast(count ? `${count} price${count !== 1 ? 's' : ''} updated` : 'Prices reset to defaults');
+    });
+  }, 50);
+}
+
+
+/* ══════════════════════════════════════════
+   Event delegation
+══════════════════════════════════════════ */
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const { action, room, instance, group, item, id, serialKey } = el.dataset;
+
+  if (action === 'set-room') {
+    VIEW.room = room;
+    VIEW.instanceId = null;
+    render();
+    return;
+  }
+
+  if (action === 'set-instance') {
+    VIEW.instanceId = instance;
+    render();
+    return;
+  }
+
+  if (action === 'add-instance') {
+    addRoomInstance(room);
+    render();
+    toast(`Added new ${RoomModel.ROOM_DEFINITIONS[room].label}`);
+    return;
+  }
+
+  if (action === 'remove-instance') {
+    removeRoomInstance(room, instance);
+    render();
+    toast('Room removed');
+    return;
+  }
+
+  if (action === 'toggle-group') {
+    VIEW.collapsed[group] = !VIEW.collapsed[group];
+    render();
+    return;
+  }
+
+  if (action === 'toggle-no-action') {
+    const current = getNoAction(getProject(), room, instance, group);
+    setNoAction(room, instance, group, !current);
+    render();
+    return;
+  }
+
+  if (action === 'edit-price') {
+    const itemId = el.dataset.item;
+    const proj = getProject();
+    const p = getItemDef(proj, itemId);
+    if (!p) return;
+    const isCustom = itemId.startsWith('custom-');
+    const current = itemCost(proj, itemId);
+    const isOverridden = !isCustom && proj?.priceOverrides?.[itemId] !== undefined;
+    const defaultCost = isCustom ? null : (PRICING[itemId]?.cost ?? 0);
+    showModal(`
+      <div class="font-bold text-lg mb-3">Edit Unit Price</div>
+      <div class="text-sm text-gray-700 mb-1">${escHtml(p.name)}</div>
+      ${!isCustom ? `<div class="text-xs text-gray-500 mb-3">Default: ${fmt(defaultCost)} / ${p.unit}</div>` : ''}
+      <label class="label">Price per ${p.unit}</label>
+      <input type="number" class="input mb-3" id="price-input" min="0" step="0.01" value="${current}" />
+      <div class="row" style="justify-content:space-between;gap:.5rem">
+        ${isOverridden ? `<button class="btn btn-secondary btn-sm" id="price-reset">Reset to default</button>` : '<div></div>'}
+        <div class="row" style="gap:.5rem">
+          <button class="btn btn-secondary" id="price-cancel">Cancel</button>
+          <button class="btn" id="price-save">Save</button>
+        </div>
+      </div>
+    `);
+    setTimeout(() => {
+      const inp = document.getElementById('price-input');
+      inp?.focus(); inp?.select();
+      document.getElementById('price-cancel')?.addEventListener('click', closeModal);
+      document.getElementById('price-reset')?.addEventListener('click', () => {
+        const proj = getProject();
+        if (proj?.priceOverrides) delete proj.priceOverrides[itemId];
+        saveApp(); closeModal(); render();
+        toast('Price reset to default');
+      });
+      document.getElementById('price-save')?.addEventListener('click', () => {
+        const val = parseFloat(document.getElementById('price-input')?.value);
+        if (isNaN(val) || val < 0) { toast('Enter a valid price'); return; }
+        const proj = getProject();
+        if (!proj) return;
+        if (isCustom) {
+          if (!proj.customItems[itemId]) return;
+          proj.customItems[itemId].cost = val;
+        } else {
+          if (!proj.priceOverrides) proj.priceOverrides = {};
+          proj.priceOverrides[itemId] = val;
+        }
+        saveApp(); closeModal(); render();
+        toast('Price updated');
+      });
+      if (inp) inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') document.getElementById('price-save')?.click(); });
+    }, 50);
+    return;
+  }
+
+  if (action === 'hide-item') {
+    const itemId = el.dataset.item;
+    const proj = getProject();
+    if (!proj) return;
+    if (!proj.hiddenItems) proj.hiddenItems = [];
+    if (!proj.hiddenItems.includes(itemId)) proj.hiddenItems.push(itemId);
+    const items = getItems(proj, VIEW.room, VIEW.instanceId);
+    if (items) delete items[itemId];
+    saveApp(); render();
+    return;
+  }
+
+  if (action === 'show-hidden') {
+    const groupId = el.dataset.group;
+    const proj = getProject();
+    if (!proj || !proj.hiddenItems) return;
+    const def = GROUPS[groupId];
+    if (!def) return;
+    proj.hiddenItems = proj.hiddenItems.filter(id => !def.items.includes(id));
+    saveApp(); render();
+    return;
+  }
+
+  if (action === 'delete-custom-item') {
+    const itemId = el.dataset.item;
+    const roomType = el.dataset.room;
+    const instanceId = el.dataset.instance;
+    const proj = getProject();
+    if (!proj) return;
+    delete proj.customItems[itemId];
+    const items = getItems(proj, roomType, instanceId);
+    if (items) delete items[itemId];
+    saveApp(); render();
+    return;
+  }
+
+  if (action === 'add-custom-item') {
+    const roomType = el.dataset.room;
+    const instanceId = el.dataset.instance;
+    const groupId = el.dataset.group;
+    const proj = getProject();
+    if (!proj) return;
+    const groupDef = GROUPS[groupId];
+    showModal(`
+      <div class="font-bold text-lg mb-3">Add Custom Item</div>
+      <div class="text-xs text-gray-500 mb-3">Group: ${groupDef?.label || groupId}</div>
+      <label class="label">Item name</label>
+      <input type="text" class="input mb-3" id="custom-name" placeholder="e.g. Custom repair" />
+      <label class="label">Unit</label>
+      <input type="text" class="input mb-2" id="custom-unit" placeholder="e.g. ea, sq ft, lf" value="ea" />
+      <label class="label">Unit price ($)</label>
+      <input type="number" class="input mb-3" id="custom-price" min="0" step="0.01" placeholder="0.00" />
+      <div class="row" style="justify-content:flex-end;gap:.5rem">
+        <button class="btn btn-secondary" id="custom-cancel">Cancel</button>
+        <button class="btn" id="custom-save">Add Item</button>
+      </div>
+    `);
+    setTimeout(() => {
+      document.getElementById('custom-name')?.focus();
+      document.getElementById('custom-cancel')?.addEventListener('click', closeModal);
+      document.getElementById('custom-save')?.addEventListener('click', () => {
+        const name = document.getElementById('custom-name')?.value.trim();
+        const unit = document.getElementById('custom-unit')?.value.trim() || 'ea';
+        const cost = parseFloat(document.getElementById('custom-price')?.value);
+        if (!name) { toast('Enter an item name'); return; }
+        if (isNaN(cost) || cost < 0) { toast('Enter a valid price'); return; }
+        const id = 'custom-' + Date.now();
+        proj.customItems[id] = { name, unit, cost, groupId };
+        const items = getItems(proj, roomType, instanceId);
+        if (items) items[id] = 1;
+        saveApp(); closeModal(); render();
+        toast('Item added');
+      });
+      document.getElementById('custom-name')?.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter') document.getElementById('custom-price')?.focus();
+      });
+    }, 50);
+    return;
+  }
+
+  if (action === 'toggle-item') {
+    const itemId = item;
+    const proj = getProject();
+    const items = getItems(proj, room, instance);
+    const currentQty = items[itemId] || 0;
+    setItemQty(room, instance, itemId, currentQty > 0 ? 0 : 1);
+    render();
+    return;
+  }
+
+  if (action === 'step-qty') {
+    const itemId = el.dataset.item;
+    const roomType = el.dataset.room;
+    const instanceId = el.dataset.instance;
+    const dir = parseInt(el.dataset.dir);
+    const proj = getProject();
+    const items = getItems(proj, roomType, instanceId);
+    const next = Math.max(0, (items[itemId] || 0) + dir);
+    setItemQty(roomType, instanceId, itemId, next);
+    if (next === 0) { render(); return; }
+    renderHeader(proj);
+    renderProgress();
+    const totalEl = document.querySelector(`[data-line-total="${itemId}-${roomType}-${instanceId}"]`);
+    if (totalEl) totalEl.textContent = fmt(itemCost(proj, itemId) * next);
+    const qtyInput = el.closest('.item-detail')?.querySelector('.qty-input');
+    if (qtyInput) qtyInput.value = next;
+    return;
+  }
+
+  if (action === 'switch-project') {
+    switchProject(id);
+    closePanel();
+    render();
+    return;
+  }
+
+  if (action === 'rename-project') {
+    e.stopPropagation();
+    const proj = APP.projects.find(p => p.id === id);
+    if (!proj) return;
+    showModal(`
+      <div class="font-bold text-lg mb-3">Rename Property</div>
+      <input type="text" class="input mb-3" id="rename-input" value="${escHtml(proj.name)}" />
+      <div class="row" style="justify-content:flex-end;gap:.5rem">
+        <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+        <button class="btn" id="modal-confirm-rename">Save</button>
+      </div>
+    `);
+    setTimeout(() => {
+      const inp = document.getElementById('rename-input');
+      inp?.focus(); inp?.select();
+      document.getElementById('modal-cancel')?.addEventListener('click', closeModal);
+      document.getElementById('modal-confirm-rename')?.addEventListener('click', () => {
+        const name = inp?.value.trim();
+        if (name) { renameProject(id, name); }
+        closeModal();
+        renderPanel();
+        renderHeader(getProject());
+        toast('Renamed');
+      });
+      if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('modal-confirm-rename')?.click(); });
+    }, 50);
+    return;
+  }
+
+  if (action === 'delete-project') {
+    e.stopPropagation();
+    const proj = APP.projects.find(p => p.id === id);
+    if (!proj) return;
+    showModal(`
+      <div class="font-bold text-lg mb-3">Delete Property?</div>
+      <p class="text-sm text-gray-700 mb-4">"${escHtml(proj.name)}" and all photos will be permanently deleted.</p>
+      <div class="row" style="justify-content:flex-end;gap:.5rem">
+        <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+        <button class="btn btn-danger" id="modal-confirm-delete">Delete</button>
+      </div>
+    `);
+    setTimeout(() => {
+      document.getElementById('modal-cancel')?.addEventListener('click', closeModal);
+      document.getElementById('modal-confirm-delete')?.addEventListener('click', () => {
+        deleteProject(id);
+        closeModal();
+        if (!getProject() && APP.projects.length > 0) APP.activeProjectId = APP.projects[0].id;
+        closePanel();
+        render();
+        toast('Deleted');
+      });
+    }, 50);
+    return;
+  }
+
+  if (action === 'suggest-group') {
+    const input = document.getElementById('suggest-input');
+    const desc = input?.value?.trim();
+    if (!desc) { toast('Enter a description first'); return; }
+    handleSuggestGroup(desc, el);
+    return;
+  }
+
+  if (action === 'clear-suggestions') {
+    if (VIEW.suggestTimer) { clearTimeout(VIEW.suggestTimer); VIEW.suggestTimer = null; }
+    VIEW.suggestedGroups = [];
+    VIEW.collapsed = {};
+    render();
+    return;
+  }
+
+  if (action === 'scan-serial') {
+    handleScanSerial(room, instance, group, el.dataset.item);
+    return;
+  }
+
+  if (action === 'close-modal') {
+    closeModal();
+    return;
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.dataset.action === 'set-qty') {
+    e.target.blur();
+  }
+});
+
+document.addEventListener('input', (e) => {
+  const el = e.target;
+  const action = el.dataset.action;
+
+  if (action === 'set-qty') {
+    const qty = parseFloat(el.value) || 0;
+    setItemQty(el.dataset.room, el.dataset.instance, el.dataset.item, qty);
+    const proj = getProject();
+    renderHeader(proj);
+    renderProgress();
+    const totalEl = document.querySelector(`[data-line-total="${el.dataset.item}-${el.dataset.room}-${el.dataset.instance}"]`);
+    if (totalEl) totalEl.textContent = fmt(itemCost(proj, el.dataset.item) * qty);
+    return;
+  }
+
+  if (action === 'save-note') {
+    const proj = getProject();
+    if (!proj) return;
+    const key = el.dataset.noteKey;
+    if (el.value.trim()) {
+      proj.groupNotes[key] = el.value;
+    } else {
+      delete proj.groupNotes[key];
+    }
+    saveApp();
+    return;
+  }
+
+  if (action === 'del-serial') {
+    e.stopPropagation();
+    deleteSerial(el.dataset.serialKey, el.dataset.serialVal);
+    render();
+    toast('Serial removed');
+    return;
+  }
+
+  if (action === 'add-serial-manual') {
+    const key = el.dataset.serialKey;
+    const safeKey = el.dataset.safeKey || key.replace(/:/g, '-');
+    const input = document.getElementById(`serial-add-${safeKey}`);
+    const val = input?.value.trim();
+    if (val) { saveSerial(key, val); render(); toast('Serial added'); }
+    return;
+  }
+});
+
+
+/* ══════════════════════════════════════════
+   AI features
+══════════════════════════════════════════ */
+
+async function handleSuggestGroup(description, btn) {
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const result = await callSuggestGroup(description);
+    btn.disabled = false;
+    btn.textContent = origText;
+
+    if (result.status === 'offline') {
+      toast('Backend not reachable — check connection');
+      return;
+    }
+
+    const suggestions = result.suggestions || [];
+    if (!suggestions.length) {
+      toast('No matching groups found');
+      return;
+    }
+
+    const groupIds = suggestions.map(s => s.group_id || s.groupId || s).filter(Boolean);
+    if (VIEW.suggestTimer) clearTimeout(VIEW.suggestTimer);
+    VIEW.suggestedGroups = groupIds;
+    VIEW.collapsed = {};
+    groupIds.forEach(gId => { VIEW.collapsed[gId] = false; });
+    VIEW.suggestTimer = setTimeout(() => { VIEW.suggestedGroups = []; VIEW.suggestTimer = null; render(); }, 60000);
+    render();
+
+    const labelsHtml = groupIds.map(gId => `<div class="badge mb-1">${GROUPS[gId]?.label || gId}</div>`).join(' ');
+    showModal(`
+      <div class="font-bold text-lg mb-3">AI Suggestions</div>
+      <p class="text-sm text-gray-700 mb-3">Based on: "<em>${escHtml(description)}</em>"</p>
+      <div class="mb-3">${labelsHtml}</div>
+      <p class="text-sm text-gray-500 mb-4">These groups are now highlighted. Review and check items — nothing is auto-selected.</p>
+      <button class="btn w-full" data-action="close-modal">Got it</button>
+    `);
+  } catch {
+    btn.disabled = false;
+    btn.textContent = origText;
+    toast('Suggestion failed — try again');
+  }
+}
+
+async function handleScanSerial(roomType, instanceId, groupId, itemId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.capture = 'environment';
+
+  input.addEventListener('change', async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+
+    showModal(`
+      <div class="font-bold text-lg mb-3">Scanning Serial Number</div>
+      <div class="text-center py-4">
+        <div style="font-size:2rem;margin-bottom:.75rem">🔍</div>
+        <div class="text-sm text-gray-600">Analyzing image...</div>
+      </div>
+    `);
+
+    try {
+      const blob = await compressToJpegBlob(file, 3000, 0.98);
+      const result = await callParseSerial(blob);
+
+      if (result.status === 'offline') {
+        showModal(`
+          <div class="font-bold text-lg mb-3">Backend Offline</div>
+          <p class="text-sm text-gray-700 mb-4">Enter serial manually below.</p>
+          ${manualSerialForm(roomType, instanceId, groupId, itemId)}
+        `);
+        return;
+      }
+
+      const { status, serial, pass1, pass2 } = result;
+      const serialKey = `${roomType}:${instanceId}:${groupId}:${itemId}`;
+
+      if (status === 'high') {
+        showModal(`
+          <div class="font-bold text-lg mb-3">Serial Found</div>
+          <div class="card card-sm mb-3 text-center">
+            <div class="text-xs text-gray-500 mb-1">High confidence — verify and correct if needed</div>
+            <div class="font-bold text-lg text-blue-600 mb-2">${escHtml(serial || '')}</div>
+          </div>
+          <input id="confirm-serial-input" type="text" class="input mb-3" value="${escHtml(serial || '')}" placeholder="Serial number" />
+          <div class="row" style="justify-content:flex-end;gap:.5rem">
+            <button class="btn btn-secondary" data-action="close-modal">Re-scan</button>
+            <button class="btn btn-green" id="confirm-serial" data-key="${serialKey}">Confirm</button>
+          </div>
+        `);
+        document.getElementById('confirm-serial')?.addEventListener('click', (e) => {
+          const val = document.getElementById('confirm-serial-input')?.value.trim() || serial || '';
+          saveSerial(e.target.dataset.key, val);
+          closeModal();
+          render();
+          toast('Serial saved');
+        });
+      } else if (status === 'low') {
+        const opts = [...new Set([pass1, ...(pass2 || [])].filter(Boolean))];
+        let optsHtml = opts.map(v => `<button class="btn btn-secondary w-full mb-2 confirm-serial-opt" data-key="${serialKey}" data-val="${escHtml(v)}">${escHtml(v)}</button>`).join('');
+        showModal(`
+          <div class="font-bold text-lg mb-3">Low Confidence Read</div>
+          <p class="text-sm text-gray-700 mb-3">Select the correct value or enter manually:</p>
+          ${optsHtml}
+          ${manualSerialForm(roomType, instanceId, groupId, itemId)}
+        `);
+        document.querySelectorAll('.confirm-serial-opt').forEach(btn => {
+          btn.addEventListener('click', e => {
+            saveSerial(e.target.dataset.key, e.target.dataset.val);
+            closeModal();
+            render();
+            toast('Serial saved');
+          });
+        });
+      } else {
+        showModal(`
+          <div class="font-bold text-lg mb-3">Could Not Read</div>
+          <p class="text-sm text-gray-700 mb-3">Enter serial number manually:</p>
+          ${manualSerialForm(roomType, instanceId, groupId, itemId)}
+        `);
+      }
+
+      wireManualSerialForm(serialKey);
+
+    } catch {
+      closeModal();
+      toast('Scan failed — enter manually');
+    }
+  });
+
+  input.click();
+}
+
+function manualSerialForm(roomType, instanceId, groupId, itemId) {
+  const serialKey = `${roomType}:${instanceId}:${groupId}:${itemId}`;
+  return `<div class="row mt-2" style="gap:.5rem">
+    <input type="text" class="input grow" id="manual-serial-input" placeholder="Enter serial number" />
+    <button class="btn shrink-0" id="manual-serial-save" data-key="${serialKey}">Add</button>
+  </div>
+  <button class="btn btn-secondary w-full mt-2" data-action="close-modal">Close</button>`;
+}
+
+function wireManualSerialForm(serialKey) {
+  setTimeout(() => {
+    document.getElementById('manual-serial-save')?.addEventListener('click', (e) => {
+      const val = document.getElementById('manual-serial-input')?.value.trim();
+      if (val) {
+        saveSerial(e.target.dataset.key, val);
+        closeModal();
+        render();
+        toast('Serial saved');
+      }
+    });
+  }, 50);
+}
+
+function saveSerial(key, value) {
+  if (!value) return;
+  const proj = getProject();
+  if (!proj) return;
+  if (!proj.serials) proj.serials = {};
+  const existing = getSerials(key);
+  if (!existing.includes(value)) existing.push(value);
+  proj.serials[key] = existing;
+  saveApp();
+}
+
+function deleteSerial(key, value) {
+  const proj = getProject();
+  if (!proj?.serials) return;
+  proj.serials[key] = getSerials(key).filter(s => s !== value);
+  saveApp();
+}
+</script>
+
+<script>
+/* ══════════════════════════════════════════
+   Install prompt (iOS + Android)
+══════════════════════════════════════════ */
+(() => {
+  const DISMISS_KEY = 'fieldscope-install-dismissed';
+  const banner = document.getElementById('install-banner');
+  const text = document.getElementById('install-text');
+  const actionBtn = document.getElementById('install-action');
+  const dismissBtn = document.getElementById('install-dismiss');
+  if (!banner) return;
+
+  let deferred = null;
+
+  const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  const isStandalone = () => window.matchMedia('(display-mode:standalone)').matches || navigator.standalone === true;
+  const wasDismissed = () => localStorage.getItem(DISMISS_KEY) === '1';
+
+  function show() { if (!wasDismissed() && !isStandalone()) banner.classList.remove('hidden'); }
+  function hide() { banner.classList.add('hidden'); }
+
+  dismissBtn.addEventListener('click', () => { localStorage.setItem(DISMISS_KEY,'1'); hide(); });
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferred = e;
+    text.textContent = 'Install for offline use.';
+    actionBtn.classList.remove('hidden');
+    show();
+  });
+
+  actionBtn.addEventListener('click', async () => {
+    if (!deferred) return;
+    deferred.prompt();
+    const { outcome } = await deferred.userChoice;
+    deferred = null;
+    actionBtn.classList.add('hidden');
+    if (outcome === 'accepted') hide();
+  });
+
+  window.addEventListener('appinstalled', () => { localStorage.setItem(DISMISS_KEY,'1'); hide(); });
+
+  if (isIos() && !isStandalone()) {
+    text.innerHTML = 'Install: tap <strong>⎙ Share</strong> then <strong>Add to Home Screen</strong>.';
+    show();
+  }
+})();
+</script>
+
+<script>
+/* ══════════════════════════════════════════
+   Init
+══════════════════════════════════════════ */
+PhotoStore.init().then(() => {
+  loadApp();
+  if (!APP.projects.length) {
+    newProject('My First Property');
+  }
+  if (!APP.activeProjectId && APP.projects.length) {
+    APP.activeProjectId = APP.projects[0].id;
+  }
+  render();
+}).catch(err => {
+  console.error('IndexedDB init failed', err);
+  loadApp();
+  if (!APP.projects.length) newProject('My First Property');
+  render();
+});
+</script>
+
+</body>
+</html>
