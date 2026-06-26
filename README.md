@@ -1,8 +1,8 @@
-# AI Field Scope
+# Field Scope
 
 A mobile-first Progressive Web App for field agents to estimate property repair costs during walkthroughs and export a ZIP containing an Excel cost breakdown and all photos.
 
-**Live app:** https://aurindom.github.io/AI-field-scope/
+**Live app:** https://aurindom.github.io/WEB-APP-Field/
 
 ---
 
@@ -22,9 +22,9 @@ A mobile-first Progressive Web App for field agents to estimate property repair 
 
 ## Try It
 
-Open https://aurindom.github.io/AI-field-scope/ on any device. No install required. On mobile, use "Add to Home Screen" for the full PWA experience.
+Open https://aurindom.github.io/WEB-APP-Field/ on any device. No install required. On mobile, use "Add to Home Screen" for the full PWA experience.
 
-AI features (serial scan, group suggestion) are powered by a live backend on Railway and work on the hosted URL without any local setup.
+AI features require an Anthropic API key. Tap ☰ → 🔑 Anthropic API Key and paste your key from [console.anthropic.com](https://console.anthropic.com). The key is stored only on your device and sent directly to the backend — it is never logged or persisted server-side.
 
 ---
 
@@ -53,7 +53,7 @@ pip install -r requirements.txt
 Create `backend/.env`:
 
 ```
-ANTHROPIC_API_KEY=sk-ant-...
+ALLOWED_ORIGIN=http://localhost:5050
 ```
 
 This file is gitignored and never committed.
@@ -70,16 +70,28 @@ uvicorn main:app --host 127.0.0.1 --port 8000
 
 **Terminal 2 — Frontend:**
 ```bash
-python -m http.server 8080
+python -m http.server 5050
 ```
 
-Open http://localhost:8080 in your browser.
+Open http://localhost:5050, tap ☰ → 🔑 Anthropic API Key, and paste your key.
+
+---
+
+## Deployment
+
+| Service | Purpose |
+|---|---|
+| Railway | FastAPI backend (`backend/` directory) |
+| GitHub Pages | Static frontend (`index.html` at repo root) |
+
+Railway environment variable required:
+- `ALLOWED_ORIGIN` — set to the GitHub Pages URL (`https://aurindom.github.io`)
 
 ---
 
 ## After Code Changes
 
-Bump `CACHE_VERSION` in `sw.js` (currently `fieldscope-v4`) and hard refresh with `Ctrl+Shift+R`.
+Bump `CACHE_VERSION` in `sw.js` and hard refresh with `Ctrl+Shift+R`.
 
 ---
 
