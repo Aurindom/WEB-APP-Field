@@ -1,17 +1,15 @@
 import asyncio
-import base64
 import json
 import re
 import logging
 from typing import Optional
 
-from google import genai
-from google.genai import types
+import anthropic
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("fieldscope")
 
-MODEL = "gemini-2.0-flash"
+MODEL = "claude-sonnet-4-6"
 REQUEST_TIMEOUT_S = 25.0
 
 PASS1_PROMPT = (
@@ -72,33 +70,37 @@ def agree(pass1: Optional[str], pass2_list: list[str]) -> Optional[str]:
     return None
 
 
-async def _run_pass1(image_b64: str, media_type: str, client: genai.Client) -> Optional[str]:
-    image_bytes = base64.b64decode(image_b64)
-    response = await client.aio.models.generate_content(
+async def _run_pass1(image_b64: str, media_type: str, client: anthropic.AsyncAnthropic) -> Optional[str]:
+    response = await client.messages.create(
         model=MODEL,
-        contents=[
-            types.Part.from_bytes(data=image_bytes, mime_type=media_type),
-            PASS1_PROMPT,
-        ],
-        config=types.GenerateContentConfig(temperature=0),
+        max_tokens=256,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_b64}},
+                {"type": "text", "text": PASS1_PROMPT},
+            ],
+        }],
     )
-    text = (response.text or "").strip()
+    text = (response.content[0].text if response.content else "").strip()
     if not text or text.strip().upper() == "NONE":
         return None
     return text
 
 
-async def _run_pass2(image_b64: str, media_type: str, client: genai.Client) -> list[str]:
-    image_bytes = base64.b64decode(image_b64)
-    response = await client.aio.models.generate_content(
+async def _run_pass2(image_b64: str, media_type: str, client: anthropic.AsyncAnthropic) -> list[str]:
+    response = await client.messages.create(
         model=MODEL,
-        contents=[
-            types.Part.from_bytes(data=image_bytes, mime_type=media_type),
-            PASS2_PROMPT,
-        ],
-        config=types.GenerateContentConfig(temperature=0),
+        max_tokens=512,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_b64}},
+                {"type": "text", "text": PASS2_PROMPT},
+            ],
+        }],
     )
-    text = (response.text or "").strip()
+    text = (response.content[0].text if response.content else "").strip()
     try:
         match = re.search(r"\{.*\}", text, re.DOTALL)
         data = json.loads(match.group(0)) if match else {}
@@ -109,7 +111,7 @@ async def _run_pass2(image_b64: str, media_type: str, client: genai.Client) -> l
 
 
 async def parse_serial_logic(image_b64: str, media_type: str, api_key: str) -> ParseSerialResponse:
-    client = genai.Client(api_key=api_key)
+    client = anthropic.AsyncAnthropic(api_key=api_key)
     try:
         results = await asyncio.wait_for(
             asyncio.gather(

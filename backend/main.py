@@ -6,7 +6,7 @@ import re
 from dotenv import load_dotenv
 load_dotenv()
 
-from google import genai
+import anthropic
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -18,7 +18,7 @@ from slowapi.util import get_remote_address
 
 from parse_serial import parse_serial_logic, ParseSerialResponse
 
-ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "http://localhost:5500")
+ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "http://localhost:5050")
 
 VALID_GROUP_IDS = {
     "ig:flooring", "ig:paint", "ig:doors", "ig:pest", "ig:misc",
@@ -116,7 +116,7 @@ async def health():
 async def parse_serial(request: Request, body: ParseSerialRequest):
     api_key = request.headers.get("X-Api-Key", "").strip()
     if not api_key:
-        return JSONResponse(status_code=401, content={"detail": "Gemini API key required"})
+        return JSONResponse(status_code=401, content={"detail": "Anthropic API key required"})
     logger.info("parse_serial called, media_type=%s", body.media_type)
     return await parse_serial_logic(body.image_b64, body.media_type, api_key)
 
@@ -126,7 +126,7 @@ async def parse_serial(request: Request, body: ParseSerialRequest):
 async def suggest_group(request: Request, body: SuggestGroupRequest):
     api_key = request.headers.get("X-Api-Key", "").strip()
     if not api_key:
-        return JSONResponse(status_code=401, content={"detail": "Gemini API key required"})
+        return JSONResponse(status_code=401, content={"detail": "Anthropic API key required"})
     logger.info("suggest_group called")
     raw_suggestions = await _call_group_suggestion(body.description, api_key)
     validated = [g for g in raw_suggestions if g.get("group_id") in VALID_GROUP_IDS]
@@ -134,14 +134,15 @@ async def suggest_group(request: Request, body: SuggestGroupRequest):
 
 
 async def _call_group_suggestion(description: str, api_key: str) -> list[dict]:
-    client = genai.Client(api_key=api_key)
+    client = anthropic.AsyncAnthropic(api_key=api_key)
     prompt = GROUP_SUGGEST_PROMPT.format(description=description)
     try:
-        response = await client.aio.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=[prompt],
+        response = await client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}],
         )
-        text = (response.text or "").strip()
+        text = (response.content[0].text if response.content else "").strip()
         match = re.search(r"\[.*\]", text, re.DOTALL)
         if not match:
             return []

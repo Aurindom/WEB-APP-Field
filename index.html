@@ -256,7 +256,7 @@ body{font-family:system-ui,-apple-system,sans-serif;color:#111827;background:#f3
   <div class="side-footer">
     <button class="btn btn-orange w-full" id="btn-new-project">+ New Project</button>
     <button class="btn btn-secondary w-full mt-2" id="btn-manage-prices">⚙ Manage Prices</button>
-    <button class="btn btn-secondary w-full mt-2" id="btn-api-key">🔑 Gemini API Key</button>
+    <button class="btn btn-secondary w-full mt-2" id="btn-api-key">🔑 Anthropic API Key</button>
   </div>
 </div>
 
@@ -1617,8 +1617,8 @@ function handleApiKey() {
   const isSet = current.length > 0;
   showModal(`
     <div class="font-bold text-lg mb-1">Gemini API Key</div>
-    <p class="text-sm text-gray-500 mb-3">Get a free key at <strong>aistudio.google.com</strong> → Get API key. The key is stored only on this device.</p>
-    <input type="password" class="input mb-1" id="gemini-key-input" placeholder="AIza..." value="${isSet ? current : ''}" autocomplete="off" />
+    <p class="text-sm text-gray-500 mb-3">Get a key at <strong>console.anthropic.com</strong> → API Keys. The key is stored only on this device.</p>
+    <input type="password" class="input mb-1" id="gemini-key-input" placeholder="sk-ant-..." value="${isSet ? current : ''}" autocomplete="off" />
     <p class="text-xs text-gray-400 mb-3" id="key-status">${isSet ? '✓ Key saved' : 'No key set — AI features will prompt for a key'}</p>
     <div class="row" style="justify-content:flex-end;gap:.5rem">
       ${isSet ? '<button class="btn btn-secondary" id="key-clear">Clear key</button>' : ''}
@@ -2172,7 +2172,7 @@ async function handleSuggestGroup(description, btn) {
     btn.textContent = origText;
 
     if (result.status === 'no-key') {
-      toast('Add your Gemini API key — tap ☰ → Gemini API Key');
+      toast('Add your Anthropic API key — tap ☰ → Anthropic API Key');
       return;
     }
     if (result.status === 'offline') {
@@ -2234,7 +2234,7 @@ async function handleScanSerial(roomType, instanceId, groupId, itemId) {
       if (result.status === 'no-key') {
         showModal(`
           <div class="font-bold text-lg mb-3">Gemini API Key Required</div>
-          <p class="text-sm text-gray-700 mb-4">Tap ☰ → Gemini API Key to add your free key from aistudio.google.com, or enter the serial manually below.</p>
+          <p class="text-sm text-gray-700 mb-4">Tap ☰ → Anthropic API Key to add your key from console.anthropic.com, or enter the serial manually below.</p>
           ${manualSerialForm(roomType, instanceId, groupId, itemId)}
         `);
         return;
