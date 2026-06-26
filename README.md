@@ -9,14 +9,14 @@ A mobile-first Progressive Web App for field agents to estimate property repair 
 ## Features
 
 - Room-by-room repair checklist across 7 room types (Bathroom, Bedroom, Living Area, Kitchen, Interior, Systems, Exterior)
-- Multi-instance rooms — add as many bathrooms, bedrooms, or living areas as the property has
+- Multi-instance rooms. Add as many bathrooms, bedrooms, or living areas as the property has.
 - Per-item quantity inputs with mobile-friendly steppers
 - Photo capture per group, stored in IndexedDB (no size cap)
-- AI group suggestion — describe damage in plain language, AI maps it to the right repair groups
-- AI serial number OCR — scan appliance data plates, two-pass Claude jury extracts the serial
+- AI group suggestion. Describe damage in plain language and AI maps it to the right repair groups.
+- AI serial number OCR. Scan appliance data plates and a two-pass Claude jury extracts the serial.
 - Per-group notes, per-project and global price overrides, custom line items
 - Export: styled Excel workbook + all photos in a ZIP
-- Works fully offline after first load — AI features degrade gracefully to manual input
+- Works fully offline after first load. AI features degrade gracefully to manual input.
 
 ---
 
@@ -24,7 +24,7 @@ A mobile-first Progressive Web App for field agents to estimate property repair 
 
 Open https://aurindom.github.io/WEB-APP-Field/ on any device. No install required. On mobile, use "Add to Home Screen" for the full PWA experience.
 
-AI features require an Anthropic API key. Tap ☰ → 🔑 Anthropic API Key and paste your key from [console.anthropic.com](https://console.anthropic.com). The key is stored only on your device and sent directly to the backend — it is never logged or persisted server-side.
+AI features require an Anthropic API key. Tap ☰ then tap Anthropic API Key and paste your key from [console.anthropic.com](https://console.anthropic.com). The key is stored only on your device and sent directly to the backend. It is never logged or persisted server-side.
 
 ---
 
@@ -33,7 +33,7 @@ AI features require an Anthropic API key. Tap ☰ → 🔑 Anthropic API Key and
 ### Prerequisites
 
 - Python 3.10 or newer
-- An Anthropic API key (for AI features — the app works fully without it)
+- An Anthropic API key (for AI features, though the app works fully without it)
 
 ### Backend setup
 
@@ -62,18 +62,18 @@ This file is gitignored and never committed.
 
 Two terminals:
 
-**Terminal 1 — Backend:**
+**Terminal 1 - Backend:**
 ```bash
 cd backend
 uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
-**Terminal 2 — Frontend:**
+**Terminal 2 - Frontend:**
 ```bash
 python -m http.server 5050
 ```
 
-Open http://localhost:5050, tap ☰ → 🔑 Anthropic API Key, and paste your key.
+Open http://localhost:5050, tap ☰ and then tap Anthropic API Key, and paste your key.
 
 ---
 
@@ -85,7 +85,7 @@ Open http://localhost:5050, tap ☰ → 🔑 Anthropic API Key, and paste your k
 | GitHub Pages | Static frontend (`index.html` at repo root) |
 
 Railway environment variable required:
-- `ALLOWED_ORIGIN` — set to the GitHub Pages URL (`https://aurindom.github.io`)
+- `ALLOWED_ORIGIN`: set to the GitHub Pages URL (`https://aurindom.github.io`)
 
 ---
 
