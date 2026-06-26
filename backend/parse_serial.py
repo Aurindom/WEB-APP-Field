@@ -65,7 +65,7 @@ def agree(pass1: Optional[str], pass2_list: list[str]) -> Optional[str]:
         return None
     for candidate in pass2_list:
         nc = normalize_serial(candidate)
-        if nc == n1 or _levenshtein(n1, nc) <= 2:
+        if nc == n1 or _levenshtein(n1, nc) <= 3:
             return pass1
     return None
 
@@ -74,6 +74,7 @@ async def _run_pass1(image_b64: str, media_type: str, client: anthropic.AsyncAnt
     response = await client.messages.create(
         model=MODEL,
         max_tokens=256,
+        temperature=0,
         messages=[{
             "role": "user",
             "content": [
@@ -92,6 +93,7 @@ async def _run_pass2(image_b64: str, media_type: str, client: anthropic.AsyncAnt
     response = await client.messages.create(
         model=MODEL,
         max_tokens=512,
+        temperature=0,
         messages=[{
             "role": "user",
             "content": [
