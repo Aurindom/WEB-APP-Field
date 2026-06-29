@@ -24,7 +24,7 @@ A mobile-first Progressive Web App for field agents to estimate property repair 
 
 Open https://aurindom.github.io/WEB-APP-Field/ on any device. No install required.
 
-**Mobile gives the best experience.** The app is built for field use — tap to check items, use the camera directly to scan serial numbers and take photos, and export the report on the spot. On mobile, tap "Add to Home Screen" to install it as a PWA and use it like a native app, including offline.
+**Mobile gives the best experience.** The app is built for field use. Tap to check items, use the camera directly to scan serial numbers and take photos, and export the report on the spot. On mobile, tap "Add to Home Screen" to install it as a PWA and use it like a native app, including offline.
 
 AI features require an Anthropic API key. Tap ☰ then tap Anthropic API Key and paste your key from [console.anthropic.com](https://console.anthropic.com). The key is stored only on your device and sent directly to the backend. It is never logged or persisted server-side.
 
