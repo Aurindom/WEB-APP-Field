@@ -2,6 +2,9 @@
 .env
 *.env
 
+# Internal notes — self-study only
+internal_notes.md
+
 # Python
 __pycache__/
 *.py[cod]
