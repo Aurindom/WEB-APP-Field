@@ -188,6 +188,8 @@ body{font-family:system-ui,-apple-system,sans-serif;color:#111827;background:#f3
 /* Suggest box */
 .suggest-box{border:1px dashed #d1d5db;background:#fafafa;border-radius:.75rem;padding:.875rem;margin-top:.5rem}
 .suggest-label{font-size:.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem}
+.suggest-result-card{display:flex;align-items:flex-start;gap:.625rem;padding:.625rem .75rem;background:#fff;border-radius:.5rem;border:1px solid #e5e7eb;margin-bottom:.5rem}
+.suggest-result-card:last-child{margin-bottom:0}
 
 /* Serial widget */
 .serial-widget{background:#f9fafb;border:1px solid #e5e7eb;border-radius:.5rem;padding:.625rem .75rem;margin-top:.5rem}
@@ -381,6 +383,9 @@ const PRICING = {
 'as-07':{name:'Window Unit Replacement 220',cost:575.00,unit:'ea.'},
 'as-08':{name:'Hot Water Heater w/ Expansion Tank',cost:1425.00,unit:'ea.'},
 'as-09':{name:'Hot Water Heater Expansion Tank Only',cost:200.00,unit:'ea.'},
+'as-25':{name:'Mini-Split System (Ductless AC)',cost:3200.00,unit:'ea.'},
+'as-26':{name:'AC Service / Tune-Up',cost:175.00,unit:'ea.'},
+'as-27':{name:'AC Capacitor / Contactor Repair',cost:350.00,unit:'ea.'},
 'as-10':{name:'Switches / Outlets',cost:1400.00,unit:'house'},
 'as-11':{name:'Standard Electrical',cost:1650.00,unit:'house'},
 'as-12':{name:'Subfloor',cost:8.20,unit:'sqft'},
@@ -435,7 +440,7 @@ const GROUPS = {
   'ba:vanity':    { label:'Vanity & Countertop', items:['ba-01','ba-02','ba-03','ba-04','ba-14','ba-15','ba-16'] },
   'ba:tub':       { label:'Tub & Shower',        items:['ba-07','ba-08','ba-09','ba-10','ba-11','ba-12','ba-13'] },
   'ba:tile':      { label:'Tile',                items:['ba-05','ba-06'] },
-  'as:hvac':      { label:'HVAC',                items:['as-01','as-02','as-03','as-04','as-05','as-06','as-07','as-08','as-09'] },
+  'as:hvac':      { label:'HVAC',                items:['as-01','as-02','as-03','as-04','as-05','as-06','as-07','as-08','as-09','as-25','as-26','as-27'] },
   'as:electrical':{ label:'Electrical',          items:['as-10','as-11','as-18','as-19','as-20','as-24'] },
   'as:structural':{ label:'Structural',          items:['as-12','as-13','as-14','as-15','as-16','as-17'] },
   'as:insulation':{ label:'Insulation & Drywall',items:['as-21','as-22','as-23'] },
@@ -454,6 +459,29 @@ const ROOM_GROUPS = {
   kitchen:  ['kt:cabinets','kt:counters','kt:appliances'],
   systems:  ['as:hvac','as:electrical','as:structural','as:insulation'],
   exterior: ['ex:fence','ex:siding','ex:windows','ex:garage','ex:trees'],
+};
+
+const GROUP_HINTS = {
+  'ig:flooring':   'Check for squeaks, uneven areas, and water damage',
+  'ig:paint':      'Look for cracks, water stains, peeling, and discoloration',
+  'ig:doors':      'Test all doors for operation, check frames and hardware',
+  'ig:pest':       'Inspect baseboards, cabinets, and attic for activity',
+  'ig:misc':       'Document remaining punch list and finish-out items',
+  'kt:cabinets':   'Check hinges, pulls, and condition of faces and boxes',
+  'kt:counters':   'Inspect for chips, cracks, and grout condition',
+  'kt:appliances': 'Test each appliance and note age and condition',
+  'ba:vanity':     'Check sink, toilet, mirror, and fixture condition',
+  'ba:tub':        'Inspect finish, grout, caulking, and drain',
+  'ba:tile':       'Look for cracked, loose, or missing tiles',
+  'as:hvac':       'Note system age, check filter, listen for unusual sounds',
+  'as:electrical': 'Test GFCI outlets, check panel, note aluminum wiring',
+  'as:structural': 'Look for foundation cracks, floor bounce, and framing issues',
+  'as:insulation': 'Check attic and wall insulation for gaps or moisture',
+  'ex:fence':      'Walk perimeter for broken or missing sections',
+  'ex:siding':     'Look for rot, cracks, and paint failure',
+  'ex:windows':    'Test operation, check seals, frames, and glazing',
+  'ex:garage':     'Test door operation, check tracks and opener',
+  'ex:trees':      'Note overhang near structure and dead limbs',
 };
 
 const SERIAL_GROUPS = new Set(['as:hvac','kt:appliances']);
@@ -872,6 +900,7 @@ let VIEW = {
   instanceId: null,
   collapsed: {},
   suggestedGroups: [],
+  suggestDescription: '',
   suggestTimer: null,
   scanPending: false,
 };
@@ -886,6 +915,15 @@ function uid() {
 
 function getProject() {
   return APP.projects.find(p => p.id === APP.activeProjectId) || null;
+}
+
+function findGroupRoom(groupId) {
+  return Object.keys(ROOM_GROUPS).find(rt => ROOM_GROUPS[rt].includes(groupId)) || null;
+}
+
+function scrollToGroup(groupId) {
+  const card = document.querySelector(`[data-group-card="${groupId}"]`);
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function saveApp() {
@@ -1439,6 +1477,30 @@ function renderSerialWidget(proj, roomType, instanceId, groupId, itemId) {
 
 function renderSuggestBox(roomType) {
   const hasSuggestions = VIEW.suggestedGroups.length > 0;
+  let resultsHtml = '';
+  if (hasSuggestions) {
+    resultsHtml = `<div class="mt-3">
+      <div class="text-xs text-gray-400 mb-2">Based on: "<em>${escHtml(VIEW.suggestDescription)}</em>"</div>`;
+    for (const gId of VIEW.suggestedGroups) {
+      const group = GROUPS[gId];
+      if (!group) continue;
+      const room = findGroupRoom(gId);
+      const roomLabel = room ? (RoomModel.ROOM_DEFINITIONS[room]?.label || room) : '';
+      const hint = GROUP_HINTS[gId] || '';
+      const topItems = (group.items || []).slice(0, 3).map(id => PRICING[id]?.name || id).join(' · ');
+      const extra = group.items.length > 3 ? ` · +${group.items.length - 3} more` : '';
+      resultsHtml += `<div class="suggest-result-card">
+        <div style="flex:1;min-width:0">
+          ${roomLabel ? `<div class="text-xs text-gray-400">${escHtml(roomLabel)}</div>` : ''}
+          <div class="text-sm font-semibold text-gray-900">${escHtml(group.label)}</div>
+          ${hint ? `<div class="text-xs text-gray-500 mt-1">💡 ${hint}</div>` : ''}
+          <div class="text-xs text-gray-400 mt-1">${escHtml(topItems)}${extra}</div>
+        </div>
+        <button class="btn btn-xs btn-blue-outline shrink-0" data-action="jump-to-group" data-group="${gId}">Go →</button>
+      </div>`;
+    }
+    resultsHtml += `</div>`;
+  }
   return `<div class="suggest-box mt-3">
     <div class="row" style="align-items:center;margin-bottom:.375rem">
       <span class="suggest-label" style="margin-bottom:0">AI Group Suggestion</span>
@@ -1446,10 +1508,10 @@ function renderSuggestBox(roomType) {
     </div>
     <div class="row" style="gap:.5rem">
       <input type="text" class="input grow text-sm" placeholder="Describe what you see..."
-             id="suggest-input" style="min-width:0" />
+             id="suggest-input" value="${hasSuggestions ? escHtml(VIEW.suggestDescription) : ''}" style="min-width:0" />
       <button class="btn btn-secondary btn-sm shrink-0" data-action="suggest-group" data-room="${roomType}">Ask AI</button>
     </div>
-    <div class="text-xs text-gray-500 mt-1">Requires backend connection. Result expands relevant groups for review.</div>
+    ${hasSuggestions ? resultsHtml : '<div class="text-xs text-gray-500 mt-1">Requires backend connection. Result expands relevant groups for review.</div>'}
   </div>`;
 }
 
@@ -1467,7 +1529,7 @@ function renderPanel() {
           <div class="font-semibold text-sm ${active ? 'text-blue-600' : 'text-gray-900'}">${escHtml(p.name)}</div>
           <div class="project-meta">${fmt(total)} · ${new Date(p.createdAt).toLocaleDateString()}</div>
         </div>
-        <div class="col" style="gap:.25rem">
+        <div class="row" style="gap:.375rem">
           <button class="btn btn-xs btn-secondary" data-action="rename-project" data-id="${p.id}" style="line-height:1">✏️</button>
           <button class="btn btn-xs btn-danger" data-action="delete-project" data-id="${p.id}" style="line-height:1">🗑️</button>
         </div>
@@ -2157,8 +2219,23 @@ document.addEventListener('click', (e) => {
   if (action === 'clear-suggestions') {
     if (VIEW.suggestTimer) { clearTimeout(VIEW.suggestTimer); VIEW.suggestTimer = null; }
     VIEW.suggestedGroups = [];
+    VIEW.suggestDescription = '';
     VIEW.collapsed = {};
     render();
+    return;
+  }
+
+  if (action === 'jump-to-group') {
+    const groupId = el.dataset.group;
+    if (!groupId) return;
+    const targetRoom = findGroupRoom(groupId);
+    if (targetRoom && targetRoom !== VIEW.room) {
+      VIEW.room = targetRoom;
+      render();
+      requestAnimationFrame(() => scrollToGroup(groupId));
+    } else {
+      scrollToGroup(groupId);
+    }
     return;
   }
 
@@ -2257,19 +2334,18 @@ async function handleSuggestGroup(description, btn) {
     const groupIds = suggestions.map(s => s.group_id || s.groupId || s).filter(Boolean);
     if (VIEW.suggestTimer) clearTimeout(VIEW.suggestTimer);
     VIEW.suggestedGroups = groupIds;
+    VIEW.suggestDescription = description;
     VIEW.collapsed = {};
     groupIds.forEach(gId => { VIEW.collapsed[gId] = false; });
-    VIEW.suggestTimer = setTimeout(() => { VIEW.suggestedGroups = []; VIEW.suggestTimer = null; render(); }, 60000);
-    render();
+    VIEW.suggestTimer = setTimeout(() => { VIEW.suggestedGroups = []; VIEW.suggestDescription = ''; VIEW.suggestTimer = null; render(); }, 60000);
 
-    const labelsHtml = groupIds.map(gId => `<div class="badge mb-1">${GROUPS[gId]?.label || gId}</div>`).join(' ');
-    showModal(`
-      <div class="font-bold text-lg mb-3">AI Suggestions</div>
-      <p class="text-sm text-gray-700 mb-3">Based on: "<em>${escHtml(description)}</em>"</p>
-      <div class="mb-3">${labelsHtml}</div>
-      <p class="text-sm text-gray-500 mb-4">These groups are now highlighted. Review and check items — nothing is auto-selected.</p>
-      <button class="btn w-full" data-action="close-modal">Got it</button>
-    `);
+    const firstGId = groupIds[0];
+    const firstRoom = firstGId ? findGroupRoom(firstGId) : null;
+    if (firstRoom && firstRoom !== VIEW.room) {
+      VIEW.room = firstRoom;
+    }
+    render();
+    if (firstGId) requestAnimationFrame(() => scrollToGroup(firstGId));
   } catch {
     btn.disabled = false;
     btn.textContent = origText;
