@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'fieldscope-v2-12';
+const CACHE_VERSION = 'fieldscope-v2-13';
 const PRECACHE_URLS = [
   './',
   './index.html',
