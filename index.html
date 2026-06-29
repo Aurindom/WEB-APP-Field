@@ -304,8 +304,6 @@ body{font-family:system-ui,-apple-system,sans-serif;color:#111827;background:#f3
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
 <script>
 window.SPARK_API_BASE = 'https://web-app-field-production.up.railway.app';
@@ -483,6 +481,14 @@ const GROUP_HINTS = {
   'ex:garage':     'Test door operation, check tracks and opener',
   'ex:trees':      'Note overhang near structure and dead limbs',
 };
+
+const GROUP_TO_ROOM = (() => {
+  const m = {};
+  for (const [rt, gids] of Object.entries(ROOM_GROUPS)) {
+    for (const gid of gids) if (!(gid in m)) m[gid] = rt;
+  }
+  return m;
+})();
 
 const SERIAL_GROUPS = new Set(['as:hvac','kt:appliances']);
 const RISK_GROUPS = new Set(['as:hvac','as:electrical','as:structural']);
@@ -662,7 +668,7 @@ async function callParseSerial(imageBlob) {
       method:'POST',
       headers:{'Content-Type':'application/json', 'X-Api-Key': APP.geminiKey},
       body: JSON.stringify({ image_b64, media_type }),
-    });
+    }, 28000);
     if (resp.status === 401) return { status:'no-key' };
     if (!resp.ok) return { status:'offline' };
     const d = await resp.json();
@@ -716,6 +722,24 @@ function buildPhotoKey(projId, roomType, instanceId, groupId, index) {
 </script>
 
 <script>
+const _loadedScripts = new Set();
+function loadScriptOnce(src) {
+  if (_loadedScripts.has(src)) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => { _loadedScripts.add(src); res(); };
+    s.onerror = () => rej(new Error(`Failed to load ${src}`));
+    document.head.appendChild(s);
+  });
+}
+async function ensureExportLibs() {
+  await Promise.all([
+    loadScriptOnce('https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js'),
+    loadScriptOnce('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'),
+  ]);
+}
+
 function buildExcelWorkbook(state) {
   const rows = [];
   const merges = [];
@@ -842,11 +866,13 @@ function buildExcelWorkbook(state) {
 }
 
 async function downloadZip(projectName, state, projectId) {
+  await ensureExportLibs();
   const zip = new JSZip();
   const xlsxBytes = XLSX.write(buildExcelWorkbook(state), { bookType:'xlsx', type:'array' });
   zip.file('repair-estimate.xlsx', xlsxBytes);
 
   const photos = zip.folder('photos');
+  const photoTasks = [];
   for (const [rt, room] of Object.entries(state.rooms)) {
     const def = RoomModel.ROOM_DEFINITIONS[rt] || { label:rt };
     const label = def.label.replace(/\s+/g,'-');
@@ -856,8 +882,7 @@ async function downloadZip(projectName, state, projectId) {
         for (const [gid, keys] of Object.entries(inst.groupPhotoKeys || {})) {
           const gLabel = (GROUPS[gid]?.label || gid).replace(/\s+/g,'-');
           for (const key of keys) {
-            const blob = await PhotoStore.get(key);
-            if (blob) photos.file(`${label}-${i+1}-${gLabel}-${key.split('-').pop()}.jpg`, blob);
+            photoTasks.push(PhotoStore.get(key).then(blob => blob ? { filename: `${label}-${i+1}-${gLabel}-${key.split('-').pop()}.jpg`, blob } : null));
           }
         }
       }
@@ -865,12 +890,13 @@ async function downloadZip(projectName, state, projectId) {
       for (const [gid, keys] of Object.entries(room.groupPhotoKeys || {})) {
         const gLabel = (GROUPS[gid]?.label || gid).replace(/\s+/g,'-');
         for (const key of keys) {
-          const blob = await PhotoStore.get(key);
-          if (blob) photos.file(`${label}-${gLabel}-${key.split('-').pop()}.jpg`, blob);
+          photoTasks.push(PhotoStore.get(key).then(blob => blob ? { filename: `${label}-${gLabel}-${key.split('-').pop()}.jpg`, blob } : null));
         }
       }
     }
   }
+  const photoResults = await Promise.all(photoTasks);
+  photoResults.forEach(r => r && photos.file(r.filename, r.blob));
 
   const zipBlob = await zip.generateAsync({ type:'blob' });
   const url = URL.createObjectURL(zipBlob);
@@ -918,7 +944,7 @@ function getProject() {
 }
 
 function findGroupRoom(groupId) {
-  return Object.keys(ROOM_GROUPS).find(rt => ROOM_GROUPS[rt].includes(groupId)) || null;
+  return GROUP_TO_ROOM[groupId] || null;
 }
 
 function scrollToGroup(groupId) {
@@ -926,8 +952,22 @@ function scrollToGroup(groupId) {
   if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+let _saveTimer = null;
+function saveAppNow() {
+  invalidateTotals();
+  try {
+    localStorage.setItem(STATE_KEY, JSON.stringify(APP));
+  } catch (err) {
+    if (err && (err.name === 'QuotaExceededError' || err.code === 22)) {
+      toast('Storage full — export and remove old projects');
+    } else {
+      console.error('saveApp failed', err);
+    }
+  }
+}
 function saveApp() {
-  localStorage.setItem(STATE_KEY, JSON.stringify(APP));
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(saveAppNow, 400);
 }
 
 function loadApp() {
@@ -1034,6 +1074,7 @@ function removePhotoKey(roomType, instanceId, key, groupId) {
 function setItemQty(roomType, instanceId, itemId, qty) {
   const proj = getProject();
   if (!proj) return;
+  invalidateTotals();
   RoomModel.setItem(proj, roomType, instanceId, itemId, qty);
   saveApp();
 }
@@ -1068,9 +1109,13 @@ function removeRoomInstance(roomType, instanceId) {
   saveApp();
 }
 
+let _totalsCache = null, _progressCache = null, _qtyDebounce = null;
+function invalidateTotals() { _totalsCache = null; _progressCache = null; }
+
 function calcProgress() {
   const proj = getProject();
   if (!proj) return { pct:0, done:0, total:0 };
+  if (_progressCache) return _progressCache;
   let total = 0, done = 0;
   for (const [rt, room] of Object.entries(proj.rooms)) {
     const groups = ROOM_GROUPS[rt] || [];
@@ -1094,7 +1139,7 @@ function calcProgress() {
       }
     }
   }
-  return { pct: total > 0 ? Math.round(done/total*100) : 0, done, total };
+  return (_progressCache = { pct: total > 0 ? Math.round(done/total*100) : 0, done, total });
 }
 
 function checkRisk(proj) {
@@ -1130,6 +1175,21 @@ function photoCount(proj) {
    Render
 ══════════════════════════════════════════ */
 
+let DOM = {};
+function initDomRefs() {
+  DOM = {
+    hdrName:      document.getElementById('hdr-name'),
+    hdrTotal:     document.getElementById('hdr-total'),
+    progressFill: document.getElementById('progress-fill'),
+    hdrProgress:  document.getElementById('hdr-progress'),
+    roomNav:      document.getElementById('room-nav'),
+    roomContent:  document.getElementById('room-content'),
+    toast:        document.getElementById('toast'),
+    modalOverlay: document.getElementById('modal-overlay'),
+    modalContent: document.getElementById('modal-content'),
+  };
+}
+
 function render() {
   const proj = getProject();
   renderHeader(proj);
@@ -1140,15 +1200,15 @@ function render() {
 }
 
 function renderHeader(proj) {
-  document.getElementById('hdr-name').textContent = proj ? proj.name : 'No Project';
+  DOM.hdrName.textContent = proj ? proj.name : 'No Project';
   const total = proj ? calcProjectTotal(proj) : 0;
-  document.getElementById('hdr-total').textContent = fmt(total);
+  DOM.hdrTotal.textContent = fmt(total);
 }
 
 function renderProgress() {
   const { pct, done, total } = calcProgress();
-  document.getElementById('progress-fill').style.width = `${pct}%`;
-  document.getElementById('hdr-progress').textContent = `${done}/${total} groups`;
+  DOM.progressFill.style.width = `${pct}%`;
+  DOM.hdrProgress.textContent = `${done}/${total} groups`;
 }
 
 function renderNav(proj) {
@@ -1163,11 +1223,12 @@ function renderNav(proj) {
     }
     html += `<button class="tab ${active ? 'tab-active' : ''}" data-action="set-room" data-room="${rt}">${label}</button>`;
   }
-  document.getElementById('room-nav').innerHTML = html;
+  DOM.roomNav.innerHTML = html;
 }
 
 function renderContent(proj) {
-  const el = document.getElementById('room-content');
+  revokeAllBlobUrls();
+  const el = DOM.roomContent;
   if (!proj) {
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">No Project Yet</div><div class="empty-sub">Tap ☰ to create your first property.</div></div>`;
     return;
@@ -1255,6 +1316,7 @@ function itemCost(proj, itemId) {
 
 function calcProjectTotal(proj) {
   if (!proj) return 0;
+  if (_totalsCache !== null) return _totalsCache;
   let total = 0;
   for (const [, room] of Object.entries(proj.rooms)) {
     if (room.type === 'multi') {
@@ -1264,7 +1326,7 @@ function calcProjectTotal(proj) {
       for (const [id, qty] of Object.entries(room.items)) total += itemCost(proj, id) * qty;
     }
   }
-  return total;
+  return (_totalsCache = total);
 }
 
 function calcSystemsTotal(proj) {
@@ -1420,6 +1482,27 @@ function renderItem(proj, itemId, qty, roomType, instanceId, groupId) {
   return html;
 }
 
+const _blobUrlCache = new Map();
+
+function getBlobUrl(key, blob) {
+  if (!_blobUrlCache.has(key)) {
+    _blobUrlCache.set(key, URL.createObjectURL(blob));
+  }
+  return _blobUrlCache.get(key);
+}
+
+function revokeBlobUrl(key) {
+  if (_blobUrlCache.has(key)) {
+    URL.revokeObjectURL(_blobUrlCache.get(key));
+    _blobUrlCache.delete(key);
+  }
+}
+
+function revokeAllBlobUrls() {
+  for (const url of _blobUrlCache.values()) URL.revokeObjectURL(url);
+  _blobUrlCache.clear();
+}
+
 function renderPhotoWidget(projId, roomType, instanceId, groupId, itemId) {
   const itemAttr = itemId ? ` data-item="${itemId}"` : '';
   return `<div class="photo-row mt-2" data-photo-widget
@@ -1540,7 +1623,7 @@ function renderPanel() {
 }
 
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 
@@ -1570,7 +1653,7 @@ function wirePhotoWidgets(proj) {
     }
 
     function addThumb(key, blob) {
-      const url = URL.createObjectURL(blob);
+      const url = getBlobUrl(key, blob);
       const wrap = document.createElement('div');
       wrap.className = 'thumb-wrap';
       wrap.dataset.key = key;
@@ -1584,7 +1667,7 @@ function wirePhotoWidgets(proj) {
       del.addEventListener('click', async () => {
         await PhotoStore.delete(key);
         removePhotoKey(roomType, instanceId, key, storageKey);
-        URL.revokeObjectURL(url);
+        revokeBlobUrl(key);
         wrap.remove();
         refreshCount();
         toast('Photo removed');
@@ -1621,28 +1704,26 @@ function wirePhotoWidgets(proj) {
           </div>
           <button class="btn btn-secondary w-full mt-3" data-action="close-modal">Cancel</button>
         `);
-        setTimeout(() => {
-          document.getElementById('photo-opt-camera')?.addEventListener('click', () => {
-            closeModal();
-            const cam = document.createElement('input');
-            cam.type = 'file';
-            cam.accept = 'image/*';
-            cam.capture = 'environment';
-            cam.addEventListener('change', () => processPhotoFile(cam.files && cam.files[0]));
-            cam.click();
-          });
-          document.getElementById('photo-opt-upload')?.addEventListener('click', () => {
-            closeModal();
-            if (input) {
-              input.addEventListener('change', async () => {
-                const file = input.files && input.files[0];
-                input.value = '';
-                await processPhotoFile(file);
-              }, { once: true });
-              input.click();
-            }
-          });
-        }, 50);
+        document.getElementById('photo-opt-camera')?.addEventListener('click', () => {
+          closeModal();
+          const cam = document.createElement('input');
+          cam.type = 'file';
+          cam.accept = 'image/*';
+          cam.capture = 'environment';
+          cam.addEventListener('change', () => processPhotoFile(cam.files && cam.files[0]));
+          cam.click();
+        });
+        document.getElementById('photo-opt-upload')?.addEventListener('click', () => {
+          closeModal();
+          if (input) {
+            input.addEventListener('change', async () => {
+              const file = input.files && input.files[0];
+              input.value = '';
+              await processPhotoFile(file);
+            }, { once: true });
+            input.click();
+          }
+        });
       });
     }
 
@@ -1663,20 +1744,20 @@ function wirePhotoWidgets(proj) {
 ══════════════════════════════════════════ */
 
 function showModal(html, { onClose } = {}) {
-  document.getElementById('modal-content').innerHTML = html;
-  document.getElementById('modal-overlay').classList.remove('hidden');
+  DOM.modalContent.innerHTML = html;
+  DOM.modalOverlay.classList.remove('hidden');
   document._modalOnClose = onClose;
 }
 
 function closeModal() {
-  document.getElementById('modal-overlay').classList.add('hidden');
-  document.getElementById('modal-content').innerHTML = '';
+  DOM.modalOverlay.classList.add('hidden');
+  DOM.modalContent.innerHTML = '';
   if (typeof document._modalOnClose === 'function') document._modalOnClose();
   document._modalOnClose = null;
 }
 
 document.getElementById('modal-overlay').addEventListener('click', (e) => {
-  if (e.target === document.getElementById('modal-overlay')) closeModal();
+  if (e.target === e.currentTarget) closeModal();
 });
 
 
@@ -1686,11 +1767,10 @@ document.getElementById('modal-overlay').addEventListener('click', (e) => {
 
 let toastTimer = null;
 function toast(msg, ms = 2400) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
+  DOM.toast.textContent = msg;
+  DOM.toast.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+  toastTimer = setTimeout(() => DOM.toast.classList.remove('show'), ms);
 }
 
 
@@ -1737,22 +1817,20 @@ function handleApiKey() {
       <button class="btn btn-primary" id="key-save">Save</button>
     </div>
   `);
-  setTimeout(() => {
-    document.getElementById('modal-cancel')?.addEventListener('click', closeModal);
-    document.getElementById('key-save')?.addEventListener('click', () => {
-      const val = document.getElementById('api-key-input').value.trim();
-      APP.geminiKey = val;
-      saveApp();
-      closeModal();
-      toast(val ? 'Anthropic key saved' : 'Key cleared');
-    });
-    document.getElementById('key-clear')?.addEventListener('click', () => {
-      APP.geminiKey = '';
-      saveApp();
-      closeModal();
-      toast('Key cleared');
-    });
-  }, 50);
+  document.getElementById('modal-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('key-save')?.addEventListener('click', () => {
+    const val = document.getElementById('api-key-input').value.trim();
+    APP.geminiKey = val;
+    saveApp();
+    closeModal();
+    toast(val ? 'Anthropic key saved' : 'Key cleared');
+  });
+  document.getElementById('key-clear')?.addEventListener('click', () => {
+    APP.geminiKey = '';
+    saveApp();
+    closeModal();
+    toast('Key cleared');
+  });
 }
 
 document.getElementById('btn-new-project').addEventListener('click', () => {
@@ -1764,20 +1842,20 @@ document.getElementById('btn-new-project').addEventListener('click', () => {
       <button class="btn btn-orange" id="modal-confirm-new">Create</button>
     </div>
   `);
-  setTimeout(() => {
-    document.getElementById('new-proj-name')?.focus();
-    document.getElementById('modal-cancel')?.addEventListener('click', closeModal);
-    document.getElementById('modal-confirm-new')?.addEventListener('click', () => {
-      const name = document.getElementById('new-proj-name')?.value.trim() || 'New Property';
-      newProject(name);
-      closeModal();
-      closePanel();
-      render();
-      toast(`Created: ${name}`);
-    });
-    const inp = document.getElementById('new-proj-name');
-    if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('modal-confirm-new')?.click(); });
-  }, 50);
+  document.getElementById('modal-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('modal-confirm-new')?.addEventListener('click', () => {
+    const name = document.getElementById('new-proj-name')?.value.trim() || 'New Property';
+    newProject(name);
+    closeModal();
+    closePanel();
+    render();
+    toast(`Created: ${name}`);
+  });
+  const inp = document.getElementById('new-proj-name');
+  if (inp) {
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('modal-confirm-new')?.click(); });
+    requestAnimationFrame(() => inp.focus());
+  }
 });
 
 
@@ -1820,22 +1898,20 @@ async function handleExport() {
     </div>
   `);
 
-  setTimeout(() => {
-    document.getElementById('export-cancel')?.addEventListener('click', closeModal);
-    document.getElementById('export-confirm')?.addEventListener('click', async () => {
-      const btn = document.getElementById('export-confirm');
-      if (btn) { btn.disabled = true; btn.textContent = 'Building...'; }
-      try {
-        await downloadZip(proj.name, proj, proj.id);
-        closeModal();
-        toast('ZIP downloaded!');
-      } catch (err) {
-        console.error(err);
-        toast('Export failed — try again');
-        closeModal();
-      }
-    });
-  }, 50);
+  document.getElementById('export-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('export-confirm')?.addEventListener('click', async () => {
+    const btn = document.getElementById('export-confirm');
+    if (btn) { btn.disabled = true; btn.textContent = 'Building...'; }
+    try {
+      await downloadZip(proj.name, proj, proj.id);
+      closeModal();
+      toast('ZIP downloaded!');
+    } catch (err) {
+      console.error(err);
+      toast('Export failed — try again');
+      closeModal();
+    }
+  });
 }
 
 
@@ -1886,33 +1962,31 @@ function handleManagePrices() {
 
   showModal(html);
 
-  setTimeout(() => {
-    document.getElementById('prices-cancel')?.addEventListener('click', closeModal);
-    document.getElementById('prices-reset-all')?.addEventListener('click', () => {
-      APP.globalPriceOverrides = {};
-      saveApp();
-      closeModal();
-      render();
-      toast('All prices reset to defaults');
+  document.getElementById('prices-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('prices-reset-all')?.addEventListener('click', () => {
+    APP.globalPriceOverrides = {};
+    saveApp();
+    closeModal();
+    render();
+    toast('All prices reset to defaults');
+  });
+  document.getElementById('prices-save')?.addEventListener('click', () => {
+    const inputs = document.querySelectorAll('[data-global-price-item]');
+    const overrides = {};
+    inputs.forEach(inp => {
+      const itemId = inp.dataset.globalPriceItem;
+      const val = parseFloat(inp.value);
+      if (!isNaN(val) && val >= 0 && val !== (PRICING[itemId]?.cost ?? 0)) {
+        overrides[itemId] = val;
+      }
     });
-    document.getElementById('prices-save')?.addEventListener('click', () => {
-      const inputs = document.querySelectorAll('[data-global-price-item]');
-      const overrides = {};
-      inputs.forEach(inp => {
-        const itemId = inp.dataset.globalPriceItem;
-        const val = parseFloat(inp.value);
-        if (!isNaN(val) && val >= 0 && val !== (PRICING[itemId]?.cost ?? 0)) {
-          overrides[itemId] = val;
-        }
-      });
-      APP.globalPriceOverrides = overrides;
-      saveApp();
-      closeModal();
-      render();
-      const count = Object.keys(overrides).length;
-      toast(count ? `${count} price${count !== 1 ? 's' : ''} updated` : 'Prices reset to defaults');
-    });
-  }, 50);
+    APP.globalPriceOverrides = overrides;
+    saveApp();
+    closeModal();
+    render();
+    const count = Object.keys(overrides).length;
+    toast(count ? `${count} price${count !== 1 ? 's' : ''} updated` : 'Prices reset to defaults');
+  });
 }
 
 
@@ -1988,33 +2062,33 @@ document.addEventListener('click', (e) => {
         </div>
       </div>
     `);
-    setTimeout(() => {
-      const inp = document.getElementById('price-input');
-      inp?.focus(); inp?.select();
-      document.getElementById('price-cancel')?.addEventListener('click', closeModal);
-      document.getElementById('price-reset')?.addEventListener('click', () => {
-        const proj = getProject();
-        if (proj?.priceOverrides) delete proj.priceOverrides[itemId];
-        saveApp(); closeModal(); render();
-        toast('Price reset to default');
-      });
-      document.getElementById('price-save')?.addEventListener('click', () => {
-        const val = parseFloat(document.getElementById('price-input')?.value);
-        if (isNaN(val) || val < 0) { toast('Enter a valid price'); return; }
-        const proj = getProject();
-        if (!proj) return;
-        if (isCustom) {
-          if (!proj.customItems[itemId]) return;
-          proj.customItems[itemId].cost = val;
-        } else {
-          if (!proj.priceOverrides) proj.priceOverrides = {};
-          proj.priceOverrides[itemId] = val;
-        }
-        saveApp(); closeModal(); render();
-        toast('Price updated');
-      });
-      if (inp) inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') document.getElementById('price-save')?.click(); });
-    }, 50);
+    document.getElementById('price-cancel')?.addEventListener('click', closeModal);
+    document.getElementById('price-reset')?.addEventListener('click', () => {
+      const proj = getProject();
+      if (proj?.priceOverrides) delete proj.priceOverrides[itemId];
+      saveApp(); closeModal(); render();
+      toast('Price reset to default');
+    });
+    document.getElementById('price-save')?.addEventListener('click', () => {
+      const val = parseFloat(document.getElementById('price-input')?.value);
+      if (isNaN(val) || val < 0) { toast('Enter a valid price'); return; }
+      const proj = getProject();
+      if (!proj) return;
+      if (isCustom) {
+        if (!proj.customItems[itemId]) return;
+        proj.customItems[itemId].cost = val;
+      } else {
+        if (!proj.priceOverrides) proj.priceOverrides = {};
+        proj.priceOverrides[itemId] = val;
+      }
+      saveApp(); closeModal(); render();
+      toast('Price updated');
+    });
+    const inp = document.getElementById('price-input');
+    if (inp) {
+      inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') document.getElementById('price-save')?.click(); });
+      requestAnimationFrame(() => { inp.focus(); inp.select(); });
+    }
     return;
   }
 
@@ -2075,26 +2149,24 @@ document.addEventListener('click', (e) => {
         <button class="btn" id="custom-save">Add Item</button>
       </div>
     `);
-    setTimeout(() => {
-      document.getElementById('custom-name')?.focus();
-      document.getElementById('custom-cancel')?.addEventListener('click', closeModal);
-      document.getElementById('custom-save')?.addEventListener('click', () => {
-        const name = document.getElementById('custom-name')?.value.trim();
-        const unit = document.getElementById('custom-unit')?.value.trim() || 'ea';
-        const cost = parseFloat(document.getElementById('custom-price')?.value);
-        if (!name) { toast('Enter an item name'); return; }
-        if (isNaN(cost) || cost < 0) { toast('Enter a valid price'); return; }
-        const id = 'custom-' + Date.now();
-        proj.customItems[id] = { name, unit, cost, groupId };
-        const items = getItems(proj, roomType, instanceId);
-        if (items) items[id] = 1;
-        saveApp(); closeModal(); render();
-        toast('Item added');
-      });
-      document.getElementById('custom-name')?.addEventListener('keydown', ev => {
-        if (ev.key === 'Enter') document.getElementById('custom-price')?.focus();
-      });
-    }, 50);
+    document.getElementById('custom-cancel')?.addEventListener('click', closeModal);
+    document.getElementById('custom-save')?.addEventListener('click', () => {
+      const name = document.getElementById('custom-name')?.value.trim();
+      const unit = document.getElementById('custom-unit')?.value.trim() || 'ea';
+      const cost = parseFloat(document.getElementById('custom-price')?.value);
+      if (!name) { toast('Enter an item name'); return; }
+      if (isNaN(cost) || cost < 0) { toast('Enter a valid price'); return; }
+      const id = 'custom-' + Date.now();
+      proj.customItems[id] = { name, unit, cost, groupId };
+      const items = getItems(proj, roomType, instanceId);
+      if (items) items[id] = 1;
+      saveApp(); closeModal(); render();
+      toast('Item added');
+    });
+    document.getElementById('custom-name')?.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter') document.getElementById('custom-price')?.focus();
+    });
+    requestAnimationFrame(() => document.getElementById('custom-name')?.focus());
     return;
   }
 
@@ -2165,20 +2237,21 @@ document.addEventListener('click', (e) => {
         <button class="btn" id="modal-confirm-rename">Save</button>
       </div>
     `);
-    setTimeout(() => {
+    document.getElementById('modal-cancel')?.addEventListener('click', closeModal);
+    document.getElementById('modal-confirm-rename')?.addEventListener('click', () => {
       const inp = document.getElementById('rename-input');
-      inp?.focus(); inp?.select();
-      document.getElementById('modal-cancel')?.addEventListener('click', closeModal);
-      document.getElementById('modal-confirm-rename')?.addEventListener('click', () => {
-        const name = inp?.value.trim();
-        if (name) { renameProject(id, name); }
-        closeModal();
-        renderPanel();
-        renderHeader(getProject());
-        toast('Renamed');
-      });
-      if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('modal-confirm-rename')?.click(); });
-    }, 50);
+      const name = inp?.value.trim();
+      if (name) { renameProject(id, name); }
+      closeModal();
+      renderPanel();
+      renderHeader(getProject());
+      toast('Renamed');
+    });
+    const inp = document.getElementById('rename-input');
+    if (inp) {
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('modal-confirm-rename')?.click(); });
+      requestAnimationFrame(() => { inp.focus(); inp.select(); });
+    }
     return;
   }
 
@@ -2194,17 +2267,15 @@ document.addEventListener('click', (e) => {
         <button class="btn btn-danger" id="modal-confirm-delete">Delete</button>
       </div>
     `);
-    setTimeout(() => {
-      document.getElementById('modal-cancel')?.addEventListener('click', closeModal);
-      document.getElementById('modal-confirm-delete')?.addEventListener('click', () => {
-        deleteProject(id);
-        closeModal();
-        if (!getProject() && APP.projects.length > 0) APP.activeProjectId = APP.projects[0].id;
-        closePanel();
-        render();
-        toast('Deleted');
-      });
-    }, 50);
+    document.getElementById('modal-cancel')?.addEventListener('click', closeModal);
+    document.getElementById('modal-confirm-delete')?.addEventListener('click', () => {
+      deleteProject(id);
+      closeModal();
+      if (!getProject() && APP.projects.length > 0) APP.activeProjectId = APP.projects[0].id;
+      closePanel();
+      render();
+      toast('Deleted');
+    });
     return;
   }
 
@@ -2262,12 +2333,16 @@ document.addEventListener('input', (e) => {
 
   if (action === 'set-qty') {
     const qty = parseFloat(el.value) || 0;
-    setItemQty(el.dataset.room, el.dataset.instance, el.dataset.item, qty);
     const proj = getProject();
-    renderHeader(proj);
-    renderProgress();
     const totalEl = document.querySelector(`[data-line-total="${el.dataset.item}-${el.dataset.room}-${el.dataset.instance}"]`);
     if (totalEl) totalEl.textContent = fmt(itemCost(proj, el.dataset.item) * qty);
+    const r = el.dataset.room, inst = el.dataset.instance, it = el.dataset.item;
+    clearTimeout(_qtyDebounce);
+    _qtyDebounce = setTimeout(() => {
+      setItemQty(r, inst, it, qty);
+      renderHeader(getProject());
+      renderProgress();
+    }, 250);
     return;
   }
 
@@ -2362,16 +2437,14 @@ function handleScanSerial(roomType, instanceId, groupId, itemId) {
     </div>
     <button class="btn btn-secondary w-full mt-3" data-action="close-modal">Cancel</button>
   `);
-  setTimeout(() => {
-    document.getElementById('scan-opt-camera')?.addEventListener('click', () => {
-      closeModal();
-      _doScan(roomType, instanceId, groupId, itemId, true);
-    });
-    document.getElementById('scan-opt-upload')?.addEventListener('click', () => {
-      closeModal();
-      _doScan(roomType, instanceId, groupId, itemId, false);
-    });
-  }, 50);
+  document.getElementById('scan-opt-camera')?.addEventListener('click', () => {
+    closeModal();
+    _doScan(roomType, instanceId, groupId, itemId, true);
+  });
+  document.getElementById('scan-opt-upload')?.addEventListener('click', () => {
+    closeModal();
+    _doScan(roomType, instanceId, groupId, itemId, false);
+  });
 }
 
 async function _doScan(roomType, instanceId, groupId, itemId, useCamera) {
@@ -2409,17 +2482,15 @@ async function _doScan(roomType, instanceId, groupId, itemId, useCamera) {
           <p class="text-sm text-gray-500 mb-2">Or enter serial manually:</p>
           ${manualSerialForm(roomType, instanceId, groupId, itemId)}
         `);
-        setTimeout(() => {
-          document.getElementById('inline-key-save')?.addEventListener('click', () => {
-            const val = document.getElementById('inline-key-input')?.value.trim();
-            if (!val) { toast('Enter a key first'); return; }
-            APP.geminiKey = val;
-            saveApp();
-            closeModal();
-            toast('Key saved — tap Scan again');
-          });
-          wireManualSerialForm(noKeySerialKey);
-        }, 50);
+        document.getElementById('inline-key-save')?.addEventListener('click', () => {
+          const val = document.getElementById('inline-key-input')?.value.trim();
+          if (!val) { toast('Enter a key first'); return; }
+          APP.geminiKey = val;
+          saveApp();
+          closeModal();
+          toast('Key saved — tap Scan again');
+        });
+        wireManualSerialForm(noKeySerialKey);
         return;
       }
 
@@ -2501,17 +2572,15 @@ function manualSerialForm(roomType, instanceId, groupId, itemId) {
 }
 
 function wireManualSerialForm(serialKey) {
-  setTimeout(() => {
-    document.getElementById('manual-serial-save')?.addEventListener('click', (e) => {
-      const val = document.getElementById('manual-serial-input')?.value.trim();
-      if (val) {
-        saveSerial(e.target.dataset.key, val);
-        closeModal();
-        render();
-        toast('Serial saved');
-      }
-    });
-  }, 50);
+  document.getElementById('manual-serial-save')?.addEventListener('click', (e) => {
+    const val = document.getElementById('manual-serial-input')?.value.trim();
+    if (val) {
+      saveSerial(e.target.dataset.key, val);
+      closeModal();
+      render();
+      toast('Serial saved');
+    }
+  });
 }
 
 function saveSerial(key, value) {
@@ -2587,6 +2656,7 @@ function deleteSerial(key, value) {
    Init
 ══════════════════════════════════════════ */
 PhotoStore.init().then(() => {
+  initDomRefs();
   loadApp();
   if (!APP.projects.length) {
     newProject('My First Property');
@@ -2597,9 +2667,15 @@ PhotoStore.init().then(() => {
   render();
 }).catch(err => {
   console.error('IndexedDB init failed', err);
+  initDomRefs();
   loadApp();
   if (!APP.projects.length) newProject('My First Property');
   render();
+});
+
+window.addEventListener('beforeunload', () => {
+  clearTimeout(_saveTimer);
+  saveAppNow();
 });
 </script>
 

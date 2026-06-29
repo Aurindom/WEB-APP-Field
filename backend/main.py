@@ -14,8 +14,6 @@ from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from slowapi.util import get_remote_address
-
 from parse_serial import parse_serial_logic, ParseSerialResponse
 
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "http://localhost:5050")
@@ -75,7 +73,13 @@ logging.basicConfig(
 logger = logging.getLogger("fieldscope")
 logger.addFilter(_StripImageFilter())
 
-limiter = Limiter(key_func=get_remote_address)
+def client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+limiter = Limiter(key_func=client_ip)
 app = FastAPI(title="Field Repair Estimator API")
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
