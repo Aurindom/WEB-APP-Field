@@ -8,11 +8,11 @@ A mobile-first Progressive Web App for field agents to estimate property repair 
 
 ## Features
 
-- Room-by-room repair checklist across 7 room types (Bathroom, Bedroom, Living Area, Kitchen, Interior, Systems, Exterior)
+- Room-by-room repair checklist across 7 room types (Bathroom, Bedroom, Living Area, Kitchen, Interior, Systems, Exterior) and 22 repair groups
 - Multi-instance rooms. Add as many bathrooms, bedrooms, or living areas as the property has.
 - Per-item quantity inputs with mobile-friendly steppers
 - Photo capture per group, stored in IndexedDB (no size cap)
-- AI group suggestion. Describe damage in plain language and AI maps it to the right repair groups.
+- AI group suggestion. Describe damage in plain language and it maps to the right repair group, scoped to the room you mention (or expanded across every matching room if you don't name one), with a jump-to-section button.
 - AI serial number OCR. Scan appliance data plates and a two-pass Claude jury extracts the serial.
 - Per-group notes, per-project and global price overrides, custom line items
 - Export: styled Excel workbook + all photos in a ZIP
@@ -108,4 +108,4 @@ Bump `CACHE_VERSION` in `sw.js` and hard refresh with `Ctrl+Shift+R`.
 | ZIP | JSZip (inlined) |
 | Backend | FastAPI + slowapi (hosted on Railway) |
 | AI (serial OCR) | claude-sonnet-4-6 (two-pass jury with Levenshtein matching) |
-| AI (group suggestion) | claude-haiku-4-5 (text classification over 19 fixed groups) |
+| AI (group suggestion) | claude-haiku-4-5 (text classification over 22 fixed groups, room-scoped client-side) |
