@@ -24,6 +24,7 @@ VALID_GROUP_IDS = {
     "ba:vanity", "ba:tub", "ba:tile",
     "as:hvac", "as:electrical", "as:structural", "as:insulation",
     "ex:fence", "ex:siding", "ex:windows", "ex:garage", "ex:trees",
+    "bd:closet", "lv:lighting",
 }
 
 GROUP_SUGGEST_PROMPT = """You are helping a property inspector categorize repair observations.
@@ -48,6 +49,8 @@ The available repair groups are:
   ex:windows — Windows
   ex:garage — Garage
   ex:trees — Trees
+  bd:closet — Bedroom Closet
+  lv:lighting — Living Area Lighting
 
 The inspector has described: "{description}"
 

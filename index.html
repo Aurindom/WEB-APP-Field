@@ -321,7 +321,7 @@ const PRICING = {
 'ig-08':{name:'Drywall Repair',cost:900.00,unit:'1,000 sqft'},
 'ig-09':{name:'Wallpaper Removal',cost:250.00,unit:'room'},
 'ig-10':{name:'Interior Door — Hollow Slab',cost:125.00,unit:'ea.'},
-'ig-11':{name:'Interior Door Hardware',cost:25.00,unit:'ea.'},
+'ig-11':{name:'Interior Door Hardware (Knob + Hinges + Labor)',cost:25.00,unit:'ea.'},
 'ig-12':{name:'Bifold Door with Framing',cost:400.00,unit:'ea.'},
 'ig-13':{name:'Interior Door — Pre-hung',cost:200.00,unit:'ea.'},
 'ig-14':{name:'Front Entry Door',cost:475.00,unit:'ea.'},
@@ -371,7 +371,7 @@ const PRICING = {
 'ba-13':{name:'Tub Tear Out + New Insert & Tub',cost:1575.00,unit:'ea.'},
 'ba-14':{name:'Undermount Sink',cost:150.00,unit:'ea.'},
 'ba-15':{name:'Mirror',cost:200.00,unit:'ea.'},
-'ba-16':{name:'HVL Fan (if no window)',cost:275.00,unit:'ea.'},
+'ba-16':{name:'HVL (needed if no window)',cost:275.00,unit:'ea.'},
 'as-01':{name:'Furnace',cost:3350.00,unit:'ea.'},
 'as-02':{name:'Condensing Unit',cost:3300.00,unit:'ea.'},
 'as-03':{name:'Package Unit',cost:4700.00,unit:'ea.'},
@@ -381,15 +381,12 @@ const PRICING = {
 'as-07':{name:'Window Unit Replacement 220',cost:575.00,unit:'ea.'},
 'as-08':{name:'Hot Water Heater w/ Expansion Tank',cost:1425.00,unit:'ea.'},
 'as-09':{name:'Hot Water Heater Expansion Tank Only',cost:200.00,unit:'ea.'},
-'as-25':{name:'Mini-Split System (Ductless AC)',cost:3200.00,unit:'ea.'},
-'as-26':{name:'AC Service / Tune-Up',cost:175.00,unit:'ea.'},
-'as-27':{name:'AC Capacitor / Contactor Repair',cost:350.00,unit:'ea.'},
 'as-10':{name:'Switches / Outlets',cost:1400.00,unit:'house'},
 'as-11':{name:'Standard Electrical',cost:1650.00,unit:'house'},
 'as-12':{name:'Subfloor',cost:8.20,unit:'sqft'},
 'as-13':{name:'Framing',cost:950.00,unit:'variable'},
 'as-14':{name:'Structural (Pier)',cost:375.00,unit:'pier'},
-'as-15':{name:'Structural Foam Injection',cost:5.85,unit:'sqft'},
+'as-15':{name:'Structural Foam Injection',cost:5.85,unit:'sqft of affected area'},
 'as-16':{name:'Roof',cost:1100.00,unit:'225 sqft L&M'},
 'as-17':{name:'Plumbing',cost:1000.00,unit:'variable'},
 'as-18':{name:'Electrical Panel Swap to 200A',cost:2350.00,unit:'ea.'},
@@ -418,7 +415,7 @@ const PRICING = {
 'ex-17':{name:'Aluminum Framed Window Pane',cost:100.00,unit:'pane'},
 'ex-18':{name:'Guttering',cost:4.15,unit:'LF'},
 'ex-19':{name:'Concrete w/ Demo',cost:200.00,unit:'sqft'},
-'ex-20':{name:'Mowing (every 2 weeks)',cost:45.00,unit:'mowing'},
+'ex-20':{name:'Mowing (summer, every 2 weeks)',cost:45.00,unit:'mowing'},
 'ex-21':{name:'Garage Door — 1 Car',cost:975.00,unit:'ea.'},
 'ex-22':{name:'Garage Door — 2 Car (Installed)',cost:1225.00,unit:'ea.'},
 'ex-23':{name:'Garage Conversion',cost:8850.00,unit:'ea.'},
@@ -438,7 +435,7 @@ const GROUPS = {
   'ba:vanity':    { label:'Vanity & Countertop', items:['ba-01','ba-02','ba-03','ba-04','ba-14','ba-15','ba-16'] },
   'ba:tub':       { label:'Tub & Shower',        items:['ba-07','ba-08','ba-09','ba-10','ba-11','ba-12','ba-13'] },
   'ba:tile':      { label:'Tile',                items:['ba-05','ba-06'] },
-  'as:hvac':      { label:'HVAC',                items:['as-01','as-02','as-03','as-04','as-05','as-06','as-07','as-08','as-09','as-25','as-26','as-27'] },
+  'as:hvac':      { label:'HVAC',                items:['as-01','as-02','as-03','as-04','as-05','as-06','as-07','as-08','as-09'] },
   'as:electrical':{ label:'Electrical',          items:['as-10','as-11','as-18','as-19','as-20','as-24'] },
   'as:structural':{ label:'Structural',          items:['as-12','as-13','as-14','as-15','as-16','as-17'] },
   'as:insulation':{ label:'Insulation & Drywall',items:['as-21','as-22','as-23'] },
@@ -447,13 +444,15 @@ const GROUPS = {
   'ex:windows':   { label:'Windows',             items:['ex-13','ex-14','ex-15','ex-16','ex-17'] },
   'ex:garage':    { label:'Garage',              items:['ex-21','ex-22','ex-23'] },
   'ex:trees':     { label:'Trees & Landscaping', items:['ex-10','ex-11','ex-12','ex-20'] },
+  'bd:closet':    { label:'Closet',              items:[] },
+  'lv:lighting':  { label:'Lighting',            items:['ig-22'] },
 };
 
 const ROOM_GROUPS = {
   interior: ['ig:flooring','ig:paint','ig:doors','ig:pest','ig:misc'],
   bathroom: ['ba:vanity','ba:tub','ba:tile'],
-  bedroom:  ['ig:flooring','ig:paint','ig:doors'],
-  living:   ['ig:flooring','ig:paint','ig:doors','ig:misc'],
+  bedroom:  ['ig:flooring','ig:paint','ig:doors','bd:closet'],
+  living:   ['ig:flooring','ig:paint','ig:doors','lv:lighting'],
   kitchen:  ['kt:cabinets','kt:counters','kt:appliances'],
   systems:  ['as:hvac','as:electrical','as:structural','as:insulation'],
   exterior: ['ex:fence','ex:siding','ex:windows','ex:garage','ex:trees'],
@@ -480,6 +479,8 @@ const GROUP_HINTS = {
   'ex:windows':    'Test operation, check seals, frames, and glazing',
   'ex:garage':     'Test door operation, check tracks and opener',
   'ex:trees':      'Note overhang near structure and dead limbs',
+  'bd:closet':     'Check shelving, rod, doors, and light — add custom items as needed',
+  'lv:lighting':   'Check fixtures, switches, and ceiling fan operation',
 };
 
 const GROUP_TO_ROOM = (() => {
@@ -489,6 +490,29 @@ const GROUP_TO_ROOM = (() => {
   }
   return m;
 })();
+
+function roomsForGroup(groupId) {
+  return Object.entries(ROOM_GROUPS)
+    .filter(([, gids]) => gids.includes(groupId))
+    .map(([rt]) => rt);
+}
+
+const ROOM_KEYWORDS = {
+  bedroom:  ['bedroom', 'bed room'],
+  bathroom: ['bathroom', 'restroom'],
+  living:   ['living room', 'living area', 'common area', 'family room', 'den'],
+  kitchen:  ['kitchen'],
+  exterior: ['exterior', 'outside', 'outdoor', 'yard', 'front of house', 'backyard'],
+  systems:  ['hvac', 'furnace', 'electrical panel', 'plumbing', 'structural', 'foundation'],
+};
+
+function detectRoomHint(description) {
+  const text = (description || '').toLowerCase();
+  for (const [rt, keywords] of Object.entries(ROOM_KEYWORDS)) {
+    if (keywords.some(kw => text.includes(kw))) return rt;
+  }
+  return null;
+}
 
 const SERIAL_GROUPS = new Set(['as:hvac','kt:appliances']);
 const RISK_GROUPS = new Set(['as:hvac','as:electrical','as:structural']);
@@ -1265,7 +1289,7 @@ function renderContent(proj) {
       html += renderGroup(proj, rt, VIEW.instanceId, gId, activeInst.items);
     });
 
-    html += renderSuggestBox(rt);
+    html += renderSuggestBox(proj, rt);
 
   } else {
     groups.forEach(gId => {
@@ -1281,7 +1305,7 @@ function renderContent(proj) {
       }
     }
 
-    html += renderSuggestBox(rt);
+    html += renderSuggestBox(proj, rt);
   }
 
   el.innerHTML = html;
@@ -1403,10 +1427,10 @@ function renderGroup(proj, roomType, instanceId, groupId, allItems) {
       html += renderItem(proj, itemId, allItems[itemId] || 0, roomType, instanceId, groupId);
     });
 
-    html += `<div class="row mt-2" style="justify-content:flex-end">
-      <button class="btn btn-xs btn-blue-outline"
+    html += `<div style="border-top:1px dashed #d1d5db;margin-top:.75rem;padding-top:.5rem">
+      <button class="btn btn-xs btn-blue-outline" style="width:100%;border-style:dashed"
               data-action="add-custom-item" data-room="${roomType}" data-instance="${instanceId}" data-group="${groupId}">
-        + Add Item
+        + Add Custom Item
       </button>
     </div>`;
 
@@ -1558,7 +1582,34 @@ function renderSerialWidget(proj, roomType, instanceId, groupId, itemId) {
   </div>`;
 }
 
-function renderSuggestBox(roomType) {
+function buildSuggestionTargets(proj, gId, description) {
+  const rooms = roomsForGroup(gId);
+  if (!rooms.length) return [];
+  const hint = detectRoomHint(description);
+  const targetRooms = (hint && rooms.includes(hint)) ? [hint] : rooms;
+  const targets = [];
+  for (const rt of targetRooms) {
+    const def = RoomModel.ROOM_DEFINITIONS[rt];
+    const roomState = proj.rooms[rt];
+    if (!def || !roomState) continue;
+    if (def.type === 'multi') {
+      const instances = roomState.instances;
+      if (VIEW.room === rt && VIEW.instanceId) {
+        const idx = instances.findIndex(i => i.instanceId === VIEW.instanceId);
+        if (idx !== -1) {
+          targets.push({ roomType: rt, instanceId: VIEW.instanceId, label: `${def.label} ${idx + 1}` });
+          continue;
+        }
+      }
+      instances.forEach((inst, i) => targets.push({ roomType: rt, instanceId: inst.instanceId, label: `${def.label} ${i + 1}` }));
+    } else {
+      targets.push({ roomType: rt, instanceId: 'single', label: def.label });
+    }
+  }
+  return targets;
+}
+
+function renderSuggestBox(proj, roomType) {
   const hasSuggestions = VIEW.suggestedGroups.length > 0;
   let resultsHtml = '';
   if (hasSuggestions) {
@@ -1567,20 +1618,22 @@ function renderSuggestBox(roomType) {
     for (const gId of VIEW.suggestedGroups) {
       const group = GROUPS[gId];
       if (!group) continue;
-      const room = findGroupRoom(gId);
-      const roomLabel = room ? (RoomModel.ROOM_DEFINITIONS[room]?.label || room) : '';
-      const hint = GROUP_HINTS[gId] || '';
+      const hintText = GROUP_HINTS[gId] || '';
       const topItems = (group.items || []).slice(0, 3).map(id => PRICING[id]?.name || id).join(' · ');
       const extra = group.items.length > 3 ? ` · +${group.items.length - 3} more` : '';
-      resultsHtml += `<div class="suggest-result-card">
-        <div style="flex:1;min-width:0">
-          ${roomLabel ? `<div class="text-xs text-gray-400">${escHtml(roomLabel)}</div>` : ''}
-          <div class="text-sm font-semibold text-gray-900">${escHtml(group.label)}</div>
-          ${hint ? `<div class="text-xs text-gray-500 mt-1">💡 ${hint}</div>` : ''}
-          <div class="text-xs text-gray-400 mt-1">${escHtml(topItems)}${extra}</div>
-        </div>
-        <button class="btn btn-xs btn-blue-outline shrink-0" data-action="jump-to-group" data-group="${gId}">Go →</button>
-      </div>`;
+      const targets = buildSuggestionTargets(proj, gId, VIEW.suggestDescription);
+      for (const t of targets) {
+        resultsHtml += `<div class="suggest-result-card">
+          <div style="flex:1;min-width:0">
+            <div class="text-xs text-gray-400">${escHtml(t.label)}</div>
+            <div class="text-sm font-semibold text-gray-900">${escHtml(group.label)}</div>
+            ${hintText ? `<div class="text-xs text-gray-500 mt-1">💡 ${hintText}</div>` : ''}
+            <div class="text-xs text-gray-400 mt-1">${escHtml(topItems)}${extra}</div>
+          </div>
+          <button class="btn btn-xs btn-blue-outline shrink-0" data-action="jump-to-group" data-group="${gId}"
+                  data-target-room="${t.roomType}" data-target-instance="${t.instanceId}">Go →</button>
+        </div>`;
+      }
     }
     resultsHtml += `</div>`;
   }
@@ -1589,10 +1642,10 @@ function renderSuggestBox(roomType) {
       <span class="suggest-label" style="margin-bottom:0">AI Group Suggestion</span>
       ${hasSuggestions ? `<button class="btn btn-xs btn-secondary" data-action="clear-suggestions" style="margin-left:auto;font-size:.7rem">× Clear</button>` : ''}
     </div>
-    <div class="row" style="gap:.5rem">
+    <div class="row" style="gap:.5rem;align-items:stretch">
       <input type="text" class="input grow text-sm" placeholder="Describe what you see..."
              id="suggest-input" value="${hasSuggestions ? escHtml(VIEW.suggestDescription) : ''}" style="min-width:0" />
-      <button class="btn btn-secondary btn-sm shrink-0" data-action="suggest-group" data-room="${roomType}">Ask AI</button>
+      <button class="btn btn-sm shrink-0" data-action="suggest-group" data-room="${roomType}">Ask AI</button>
     </div>
     ${hasSuggestions ? resultsHtml : '<div class="text-xs text-gray-500 mt-1">Requires backend connection. Result expands relevant groups for review.</div>'}
   </div>`;
@@ -2299,9 +2352,15 @@ document.addEventListener('click', (e) => {
   if (action === 'jump-to-group') {
     const groupId = el.dataset.group;
     if (!groupId) return;
-    const targetRoom = findGroupRoom(groupId);
-    if (targetRoom && targetRoom !== VIEW.room) {
-      VIEW.room = targetRoom;
+    const targetRoom = el.dataset.targetRoom || findGroupRoom(groupId);
+    const targetInstance = el.dataset.targetInstance || null;
+    let needsRender = false;
+    if (targetRoom && targetRoom !== VIEW.room) { VIEW.room = targetRoom; needsRender = true; }
+    if (targetInstance && targetInstance !== 'single' && targetInstance !== VIEW.instanceId) {
+      VIEW.instanceId = targetInstance;
+      needsRender = true;
+    }
+    if (needsRender) {
       render();
       requestAnimationFrame(() => scrollToGroup(groupId));
     } else {
@@ -2415,7 +2474,14 @@ async function handleSuggestGroup(description, btn) {
     VIEW.suggestTimer = setTimeout(() => { VIEW.suggestedGroups = []; VIEW.suggestDescription = ''; VIEW.suggestTimer = null; render(); }, 60000);
 
     const firstGId = groupIds[0];
-    const firstRoom = firstGId ? findGroupRoom(firstGId) : null;
+    let firstRoom = null;
+    if (firstGId) {
+      const candidateRooms = roomsForGroup(firstGId);
+      const hint = detectRoomHint(description);
+      if (hint && candidateRooms.includes(hint)) firstRoom = hint;
+      else if (candidateRooms.includes(VIEW.room)) firstRoom = VIEW.room;
+      else firstRoom = candidateRooms[0] || findGroupRoom(firstGId);
+    }
     if (firstRoom && firstRoom !== VIEW.room) {
       VIEW.room = firstRoom;
     }
